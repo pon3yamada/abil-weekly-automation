@@ -35,25 +35,25 @@
     "shopify": {
       "metrics": [
         {
-          "label": "セッション数",
-          "value": "1,420",
+          "label": "注文件数",
+          "value": "42",
           "delta": "▲ 8.4% 先週比",
           "delta_class": "metric-up"
         },
         {
-          "label": "CV率",
-          "value": "2.63%",
-          "delta": "▲ 0.2pt 先週比",
+          "label": "週次売上（税込）",
+          "value": "¥375,000",
+          "delta": "▲ 10.3% 先週比",
           "delta_class": "metric-up"
         },
         {
-          "label": "注文単価",
-          "value": "¥10,100",
+          "label": "平均注文単価",
+          "value": "¥8,929",
           "delta": "▼ 1.5% 先週比",
           "delta_class": "metric-down"
         },
         {
-          "label": "リピート率",
+          "label": "既存顧客による注文の割合",
           "value": "36.5%",
           "delta": "▲ 0.8pt 先週比",
           "delta_class": "metric-up"

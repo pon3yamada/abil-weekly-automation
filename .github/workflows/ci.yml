@@ -19,8 +19,9 @@ jobs:
           test -f docs/ROADMAP.md
           test -d reference
 
-      - name: Python — レポート HTML 生成（フェーズ1）
+      - name: Python — レポート HTML 生成（フェーズ1）＋ Shopify 取得スクリプト構文
         run: |
           python3 -m pip install -q -r src/requirements.txt
+          python3 -m py_compile src/fetch_shopify.py
           python3 src/generate_report.py -i src/data/sample_report.json -o build/report.html
           test -s build/report.html
