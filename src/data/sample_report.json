@@ -1,0 +1,212 @@
+{
+  "report": {
+    "period_range": "2026年4月7日（月）〜 4月10日（金）",
+    "overall_score": "B+",
+    "score_subtitle": "先週より改善中 📈",
+    "alert": {
+      "show": true,
+      "message": "Meta広告のCPAが先週比 +38%悪化しています。早めに確認してみてください！"
+    },
+    "summary": {
+      "sales": {
+        "value": "¥375,000",
+        "delta": "▲ 10.3%",
+        "delta_class": "metric-up",
+        "progress_pct": 25,
+        "footnote": "月間目標（¥150万）の 25%"
+      },
+      "ad_spend": {
+        "value": "¥100,000",
+        "delta": "▲ 5.3%",
+        "delta_class": "metric-neutral",
+        "progress_pct": 25,
+        "footnote": "月間予算（¥40万）の 25%消化"
+      },
+      "mer": {
+        "value": "26.7%",
+        "prior_label": "→ 先週 27.9%",
+        "prior_class": "metric-up text-gray-500",
+        "gauge_pct": 60,
+        "status": "良好",
+        "status_class": "text-green-600 font-bold",
+        "footnote": "目標: 30%以下"
+      }
+    },
+    "shopify": {
+      "metrics": [
+        {
+          "label": "セッション数",
+          "value": "1,420",
+          "delta": "▲ 8.4% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "CV率",
+          "value": "2.63%",
+          "delta": "▲ 0.2pt 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "注文単価",
+          "value": "¥10,100",
+          "delta": "▼ 1.5% 先週比",
+          "delta_class": "metric-down"
+        },
+        {
+          "label": "リピート率",
+          "value": "36.5%",
+          "delta": "▲ 0.8pt 先週比",
+          "delta_class": "metric-up"
+        }
+      ]
+    },
+    "meta_ads": {
+      "badge": "⚠️ CPA悪化中",
+      "metrics": [
+        {
+          "label": "購入（売上）",
+          "value": "¥131,000",
+          "delta": "▲ 10.1% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "注文数（CV）",
+          "value": "13件",
+          "delta": "▲ 8.3% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "クリック数",
+          "value": "625",
+          "delta": "▲ 5.2% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "CPC（クリック単価）",
+          "value": "¥60",
+          "delta": "▲ 3.8% 先週比",
+          "delta_class": "metric-down"
+        },
+        {
+          "label": "CVR",
+          "value": "2.08%",
+          "delta": "▼ 0.1pt 先週比",
+          "delta_class": "metric-down"
+        },
+        {
+          "label": "ROAS",
+          "value": "3.49×",
+          "value_class": "text-brand-orange",
+          "delta": "▲ 0.2 先週比",
+          "delta_class": "metric-up"
+        }
+      ]
+    },
+    "google_ads": {
+      "metrics": [
+        {
+          "label": "購入（売上）",
+          "value": "¥244,000",
+          "delta": "▲ 7.5% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "注文数（CV）",
+          "value": "24件",
+          "delta": "▲ 4.3% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "クリック数",
+          "value": "890",
+          "delta": "→ 1.2% 先週比",
+          "delta_class": "metric-neutral"
+        },
+        {
+          "label": "CPC（クリック単価）",
+          "value": "¥70",
+          "delta": "▼ 2.8% 先週比",
+          "delta_class": "metric-up text-green-600"
+        },
+        {
+          "label": "CVR",
+          "value": "2.70%",
+          "delta": "▲ 0.2pt 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "ROAS",
+          "value": "3.90×",
+          "value_class": "text-brand-orange",
+          "delta": "▲ 0.3 先週比",
+          "delta_class": "metric-up"
+        }
+      ]
+    },
+    "compare": {
+      "roas": {
+        "caption": "Meta: 3.49× / Google: 3.90×",
+        "meta_bar_pct": 89,
+        "google_bar_pct": 100,
+        "meta_value": "3.49×",
+        "google_value": "3.90×"
+      },
+      "cpc": {
+        "caption": "Meta: ¥60 / Google: ¥70",
+        "meta_bar_pct": 100,
+        "google_bar_pct": 86,
+        "meta_value": "¥60",
+        "google_value": "¥70"
+      },
+      "cvr": {
+        "caption": "Meta: 2.08% / Google: 2.70%",
+        "meta_bar_pct": 77,
+        "google_bar_pct": 100,
+        "meta_value": "2.08%",
+        "google_value": "2.70%"
+      }
+    },
+    "trend_chart": {
+      "labels": ["3/17週", "3/24週", "3/31週", "4/7週（今週）"],
+      "sales": [310000, 328000, 340000, 375000],
+      "ad_spend": [88000, 92000, 95000, 100000],
+      "roas": [3.52, 3.57, 3.58, 3.75]
+    },
+    "actions": [
+      {
+        "border_color": "#EF4444",
+        "emoji": "🔥",
+        "priority": "緊急",
+        "priority_bg": "bg-red-100",
+        "priority_text": "text-red-600",
+        "channel": "Meta広告",
+        "title": "Meta広告のクリエイティブが疲弊してるかも？差し替えを試してみよう！",
+        "body_html": "CPAが先週比+38%と急悪化しています。同じクリエイティブを3週以上使っているものがあれば、新しい画像・動画に入れ替えてみましょう。<span class=\"font-bold text-brand-orange\">CPA 20〜30%改善が期待できます。</span>"
+      },
+      {
+        "border_color": "#F59E0B",
+        "emoji": "💡",
+        "priority": "推奨",
+        "priority_bg": "bg-yellow-100",
+        "priority_text": "text-yellow-700",
+        "channel": "Google広告",
+        "title": "Google広告の好調を活かして予算を増やしてみよう！",
+        "body_html": "ROAS 3.90×と好調をキープしています。現在Metaに多く割いている予算の一部をGoogleに移すことで、<span class=\"font-bold text-brand-orange\">全体ROASを0.2〜0.3pt改善できる</span>可能性があります。"
+      },
+      {
+        "border_color": "#19448e",
+        "emoji": "🛒",
+        "priority": "中期",
+        "priority_bg": "bg-blue-100",
+        "priority_text": "text-brand-navy",
+        "channel": "Shopify",
+        "title": "注文単価がじわり下がってる…アップセルを仕込んでみよう！",
+        "body_html": "注文単価が先週比-2.1%と微減しています。カート画面やサンクスページへのアップセル・クロスセル施策を追加することで、<span class=\"font-bold text-brand-orange\">月間売上+5〜8%</span>が狙えます。"
+      }
+    ],
+    "footer": {
+      "disclaimer": "このレポートは自動生成されています。数値はサンプルデータです。",
+      "generated_at": "2026年4月10日 09:00"
+    }
+  }
+}
