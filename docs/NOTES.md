@@ -13,6 +13,43 @@
 - メモ:
 ```
 
+### 2026-05-05 — Shopify 連携 完了 + レポートサイト構築
+
+- **やったこと**
+  - Shopify Partners に `abil-weekly-report` アプリを作成済み（260504 バージョン）
+  - `shopify.app.toml` を生成し、`http://localhost:3000/callback` をリダイレクト URI に追加 → `shopify app deploy` で反映
+  - `src/get_shopify_token.py` で OAuth トークン（`shpat_xxx`）を取得し `.env` の `SHOPIFY_ACCESS_TOKEN` に保存
+  - `src/fetch_shopify.py` で実データ取得確認済み（注文件数・週次売上・AOV・既存顧客比率）
+  - `tools.abil.shop`（GitHub Pages）をパスワード保護付きレポートサイトに改造
+    - トップ: `https://tools.abil.shop/` → レポート一覧（`abil-ai` でログイン）
+    - 個別: `https://tools.abil.shop/weekly_report_YYMMDD-YYMMDD/`
+  - GitHub Actions `Deploy Weekly Report` ワークフロー完成・動作確認済み
+    - 毎週月曜 09:00 JST に自動実行（cron）または手動実行
+    - Shopify データ取得 → HTML 生成 → repo コミット → Pages デプロイ
+  - GitHub Secrets 登録済み: `SHOPIFY_STORE` / `SHOPIFY_ACCESS_TOKEN` / `SHOPIFY_API_VERSION` / `REPORT_PASSWORD_HASH`
+
+- **次にやること（新チャットで続ける）**
+  - **Shopify セッション数・CV率の追加**（`fetch_shopify.py` 拡張）
+    - Shopify の Analytics API または GraphQL でセッション数を取得
+    - CV率 = 注文件数 ÷ セッション数 で計算
+    - `sample_report.json` と `weekly_report.html.j2` に新指標を追加
+  - フェーズ4: Meta 広告 API 連携
+  - フェーズ5: Google 広告 API 連携
+
+- **重要ファイル**
+  - `.env`: `SHOPIFY_STORE` / `SHOPIFY_ACCESS_TOKEN` / `SHOPIFY_API_VERSION` / `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET`
+  - `shopify.app.toml`: Partners アプリ設定（スコープ: `read_all_orders, read_analytics, read_customers, read_orders`）
+  - `src/fetch_shopify.py`: Shopify REST + GraphQL で注文集計
+  - `src/generate_report.py`: JSON → 個別レポート HTML（パスワード保護付き）
+  - `src/generate_index.py`: `reports_index.json` → トップページ HTML
+  - `src/data/reports_index.json`: デプロイ済みレポートの一覧（Actions が自動追記）
+  - `.github/workflows/pages.yml`: 週次自動化ワークフロー
+
+- **注意事項**
+  - `_site/` は `.gitignore` に含まれるが、Actions では `git add -f` で強制追加している
+  - パスワード `abil-ai` のハッシュ: `10bd0d13c822595f6995db0dc2c90b9ea38f0ce5e9c90cafa56a671529a6bb08`
+  - Shopify API バージョン: `2026-04`
+
 ### 2026-05-03 — Google Ads API / OAuth まわり
 
 - **やったこと**
