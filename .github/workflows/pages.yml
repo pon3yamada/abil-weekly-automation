@@ -120,7 +120,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add _site/${{ env.WEEK_SLUG }}/
+          git add -f _site/${{ env.WEEK_SLUG }}/
           git add src/data/reports_index.json
           git diff --cached --quiet || git commit -m "report: ${{ env.WEEK_SLUG }}"
           git push
