@@ -13,6 +13,42 @@
 - メモ:
 ```
 
+### 2026-05-06 — Shopify セッション数・CV率 対応 + Analytics API 調査
+
+- **やったこと**
+  - `fetch_shopify.py` に `fetch_sessions_shopifyql()` 関数を追加
+    - ShopifyQL `analyticsReport` GraphQL フィールドを試みる実装
+    - **結果**: Basic プランでは `analyticsReport` フィールドが GraphQL スキーマに存在しない（404 + undefinedField エラー）
+    - アクセストークンの `read_analytics` スコープは正しく付与済みだが、Analytics API は管理画面のみ（API 非公開）
+    - グレースフルデグレード済み：取得失敗時は警告 stderr 出力のみ・4 指標のまま継続
+  - `build_shopify_metrics()` を拡張 — `sessions_cur` / `sessions_prev` 引数（キーワード only）を追加
+    - セッション数が取得できた場合のみ「セッション数」「CV率（注文/セッション）」の 2 指標を metrics リストへ追記
+  - `sample_report.json` にセッション数・CV率のサンプルデータを追加（サンプル値: 1,820 セッション / CV率 2.3%）
+  - `fetch_shopify.py` を実行して動作確認
+    - 注文件数 35件 / 売上 ¥342,440 / AOV ¥9,784 / 既存顧客比率 11.4% （直近週）
+    - セッション数は警告表示のみで 4 指標レポートとして正常出力
+
+- **Shopify Analytics API の制約まとめ**
+  - `GET /admin/api/{ver}/reports.json` → 404（Basic プランでは REST Reports API 非対応）
+  - `analyticsReport` GraphQL → `Field 'analyticsReport' doesn't exist on type 'QueryRoot'`（Basic プランでは非公開）
+  - スコープ確認: `read_analytics` は付与済み。ただし Shopify のセッション Analytics API は**管理画面専用**で、API は Shopify Plus のみ提供
+  - **回避策として検討すべき選択肢**
+    1. Google Analytics 4 API（フェーズ5で実装予定）からセッション数を取得して補完
+    2. Shopify Plus にアップグレードすれば `analyticsReport` が利用可能になる
+
+- **次にやること**
+  - フェーズ4: **Meta 広告 API 連携**（`fetch_meta.py` 新規作成）
+    - `.env` に `META_ACCESS_TOKEN` / `META_AD_ACCOUNT_ID` を設定（未記入）
+    - Marketing API v21.0 で Insights 取得: spend / purchases_value / clicks / CPC / CVR / ROAS
+  - フェーズ5: **Google 広告 API 連携**（`fetch_google_ads.py` 新規作成）
+    - `google-ads` ライブラリで SearchStream レポート取得
+    - GA4 Reporting API でセッション数も取得 → Shopify CV率に転用
+  - セッション数が取れた場合の HTML グリッドレイアウト検討（現状 6 指標で 2 行になる）
+
+- **重要ファイル（更新）**
+  - `src/fetch_shopify.py`: `fetch_sessions_shopifyql()` / `build_shopify_metrics()` 拡張済み
+  - `src/data/sample_report.json`: セッション数・CV率サンプル値追加済み
+
 ### 2026-05-05 — Shopify 連携 完了 + レポートサイト構築
 
 - **やったこと**

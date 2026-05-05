@@ -121,9 +121,101 @@ def iter_orders_created_between(
         url = _next_page_url(r.headers.get("Link"))
 
 
+def fetch_sessions_shopifyql(
+    sess: requests.Session,
+    host: str,
+    api_version: str,
+    date_from: date,
+    date_to: date,
+) -> int | None:
+    """ShopifyQL analyticsReport でセッション数を取得する。
+
+    read_analytics スコープが必要。取得不可（プラン制限・スコープ不足・パースエラー）の場合は None を返す。
+    """
+    gql_url = f"https://{host}/admin/api/{api_version}/graphql.json"
+    query_str = f"FROM sessions SINCE {date_from.isoformat()} UNTIL {date_to.isoformat()}"
+    graphql_query = """
+    query($qs: String!) {
+      analyticsReport(queryString: $qs) {
+        parseError
+        tableData {
+          unformattedData {
+            columnNames
+            rowData
+          }
+        }
+      }
+    }
+    """
+    try:
+        r = sess.post(
+            gql_url,
+            json={"query": graphql_query, "variables": {"qs": query_str}},
+            timeout=60,
+        )
+        r.raise_for_status()
+        body = r.json()
+    except requests.HTTPError as e:
+        print(f"warning: セッション数取得に失敗（HTTP {e.response.status_code}）、スキップします", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"warning: セッション数取得に失敗: {e}", file=sys.stderr)
+        return None
+
+    if body.get("errors"):
+        print(f"warning: セッション数 GraphQL エラー: {body['errors']}", file=sys.stderr)
+        return None
+
+    ar = (body.get("data") or {}).get("analyticsReport") or {}
+    if ar.get("parseError"):
+        print(f"warning: ShopifyQL パースエラー: {ar['parseError']}", file=sys.stderr)
+        return None
+
+    table = (ar.get("tableData") or {}).get("unformattedData") or {}
+    columns: list[str] = table.get("columnNames") or []
+    rows: list[list] = table.get("rowData") or []
+
+    session_col_candidates = ["sessions", "Sessions", "total_sessions", "session_count"]
+    idx: int | None = None
+    for candidate in session_col_candidates:
+        if candidate in columns:
+            idx = columns.index(candidate)
+            break
+
+    if idx is None:
+        print(
+            f"warning: セッション数列が見つかりません（列: {columns}）、スキップします",
+            file=sys.stderr,
+        )
+        return None
+
+    total = 0
+    for row in rows:
+        try:
+            val = row[idx]
+            total += int(float(str(val))) if val is not None else 0
+        except (IndexError, ValueError, TypeError):
+            pass
+
+    return total if rows else None
+
+
 def _money_decimal(order: dict[str, Any]) -> Decimal:
+    """販売合計（税込・送料込）= current_total_price"""
     raw = order.get("current_total_price") or order.get("total_price") or "0"
     return Decimal(str(raw))
+
+
+def _net_sales_decimal(order: dict[str, Any]) -> Decimal:
+    """純売上高 = current_subtotal_price − current_total_tax
+
+    日本は税込価格表示のため subtotal_price に税が含まれる。
+    Shopify管理画面「純売上高」= 総売上高 − ディスカウント − 税（送料除く）
+    AOV をこのベースで計算することで管理画面の「平均注文金額」と一致する。
+    """
+    subtotal = Decimal(str(order.get("current_subtotal_price") or order.get("subtotal_price") or "0"))
+    tax = Decimal(str(order.get("current_total_tax") or order.get("total_tax") or "0"))
+    return subtotal - tax
 
 
 def fetch_shop_timezone_and_currency(sess: requests.Session, base: str) -> tuple[str, str]:
@@ -224,30 +316,33 @@ def aggregate_week(
     week_start_utc: datetime,
     customer_created: dict[int, datetime],
 ) -> dict[str, Any]:
-    total = Decimal(0)
+    total = Decimal(0)      # 販売合計（税込・送料込）→ 週次売上に使用
+    subtotal = Decimal(0)   # 純売上高（税・送料除く）→ AOV に使用（Shopify管理画面と合わせる）
     n = 0
-    with_customer = 0
-    existing_orders = 0
+    unique_cids: set[int] = set()
+    existing_cids: set[int] = set()
     for o in orders:
         total += _money_decimal(o)
+        subtotal += _net_sales_decimal(o)
         n += 1
         cust = o.get("customer") or {}
         cid = cust.get("id")
         if cid is None:
             continue
         cid = int(cid)
-        with_customer += 1
+        unique_cids.add(cid)
         c_at = customer_created.get(cid)
         if c_at is not None and c_at.astimezone(timezone.utc) < week_start_utc:
-            existing_orders += 1
-    aov = (total / n) if n else Decimal(0)
-    share = (existing_orders / with_customer) if with_customer else 0.0
+            existing_cids.add(cid)
+    aov = (subtotal / n) if n else Decimal(0)
+    # リピート率 = 既存顧客数 / ユニーク顧客数（Shopify管理画面の定義に合わせてユニーク顧客ベース）
+    share = (len(existing_cids) / len(unique_cids)) if unique_cids else 0.0
     return {
         "order_count": n,
         "revenue": total,
         "aov": aov,
         "existing_share": share,
-        "with_customer": with_customer,
+        "unique_customers": len(unique_cids),
     }
 
 
@@ -255,6 +350,9 @@ def build_shopify_metrics(
     cur: dict[str, Any],
     prev: dict[str, Any],
     currency: str,
+    *,
+    sessions_cur: int | None = None,
+    sessions_prev: int | None = None,
 ) -> list[dict[str, str]]:
     oc_cur, oc_prev = cur["order_count"], prev["order_count"]
     rev_cur = float(cur["revenue"])
@@ -268,7 +366,7 @@ def build_shopify_metrics(
     d3, c3 = _delta_pct_display(aov_cur, aov_prev)
     d4, c4 = _delta_pt_display(sh_cur, sh_prev)
 
-    return [
+    metrics: list[dict[str, str]] = [
         {
             "label": "注文件数",
             "value": _fmt_int(int(oc_cur)),
@@ -294,6 +392,52 @@ def build_shopify_metrics(
             "delta_class": c4,
         },
     ]
+
+    if sessions_cur is not None:
+        d5, c5 = _delta_pct_display(
+            float(sessions_cur),
+            float(sessions_prev) if sessions_prev is not None else 0.0,
+        )
+        session_value = _fmt_int(sessions_cur)
+        session_delta = d5
+        session_delta_class = c5
+
+        cvr_cur = oc_cur / sessions_cur * 100.0 if sessions_cur > 0 else 0.0
+        cvr_prev = (
+            (oc_prev / sessions_prev * 100.0 if sessions_prev and sessions_prev > 0 else 0.0)
+            if sessions_prev is not None
+            else 0.0
+        )
+        d6, c6 = _delta_pt_display(cvr_cur / 100.0, cvr_prev / 100.0)
+        cvr_value = _fmt_pct_one_decimal(cvr_cur)
+        cvr_delta = d6
+        cvr_delta_class = c6
+    else:
+        session_value = "N/A"
+        session_delta = "（データ取得不可）"
+        session_delta_class = "metric-neutral"
+        cvr_value = "N/A"
+        cvr_delta = "（データ取得不可）"
+        cvr_delta_class = "metric-neutral"
+
+    metrics.append(
+        {
+            "label": "セッション数",
+            "value": session_value,
+            "delta": session_delta,
+            "delta_class": session_delta_class,
+        }
+    )
+    metrics.append(
+        {
+            "label": "CV率（注文/セッション）",
+            "value": cvr_value,
+            "delta": cvr_delta,
+            "delta_class": cvr_delta_class,
+        }
+    )
+
+    return metrics
 
 
 def main() -> int:
@@ -392,8 +536,24 @@ def main() -> int:
     cur_stats = aggregate_week(cur_orders, week_start_utc=r_start, customer_created=cust_created)
     prev_stats = aggregate_week(prev_orders, week_start_utc=p_start, customer_created=cust_created)
 
+    report_sun = report_mon + timedelta(days=6)
+    prev_sun = prev_mon + timedelta(days=6)
+    try:
+        sessions_cur = fetch_sessions_shopifyql(sess, host, api_ver, report_mon, report_sun)
+        sessions_prev = fetch_sessions_shopifyql(sess, host, api_ver, prev_mon, prev_sun)
+    except Exception as e:
+        print(f"warning: セッション数取得で予期しないエラー: {e}", file=sys.stderr)
+        sessions_cur = None
+        sessions_prev = None
+
     shopify_block = {
-        "metrics": build_shopify_metrics(cur_stats, prev_stats, currency),
+        "metrics": build_shopify_metrics(
+            cur_stats,
+            prev_stats,
+            currency,
+            sessions_cur=sessions_cur,
+            sessions_prev=sessions_prev,
+        ),
     }
     period_range = _format_period_jp(report_mon)
 
@@ -414,6 +574,17 @@ def main() -> int:
             return 1
         report["shopify"] = shopify_block
         report["period_range"] = period_range
+
+        # summary.sales を Shopify 実データで上書き
+        # （progress_pct / footnote は月間目標に依存するためサンプル値を維持）
+        rev_cur = float(cur_stats["revenue"])
+        rev_prev = float(prev_stats["revenue"])
+        d_rev, c_rev = _delta_pct_display(rev_cur, rev_prev)
+        summary_sales = report.setdefault("summary", {}).setdefault("sales", {})
+        summary_sales["value"] = _fmt_money(cur_stats["revenue"], currency)
+        summary_sales["delta"] = d_rev.replace(" 先週比", "")
+        summary_sales["delta_class"] = c_rev
+
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(base_doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     else:

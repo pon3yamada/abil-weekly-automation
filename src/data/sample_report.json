@@ -57,6 +57,18 @@
           "value": "36.5%",
           "delta": "▲ 0.8pt 先週比",
           "delta_class": "metric-up"
+        },
+        {
+          "label": "セッション数",
+          "value": "1,820",
+          "delta": "▲ 5.2% 先週比",
+          "delta_class": "metric-up"
+        },
+        {
+          "label": "CV率（注文/セッション）",
+          "value": "2.3%",
+          "delta": "▲ 0.1pt 先週比",
+          "delta_class": "metric-up"
         }
       ]
     },
