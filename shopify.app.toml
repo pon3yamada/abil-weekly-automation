@@ -1,0 +1,21 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "96ff46796558c7539b30237c8eff5fff"
+application_url = "https://tools.abil.shop/"
+embedded = false
+name = "abil-weekly-report"
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_all_orders,read_analytics,read_customers,read_orders"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://tools.abil.shop/",
+  "http://localhost:3000/callback",
+]

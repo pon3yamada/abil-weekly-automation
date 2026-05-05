@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""週次レポート用 JSON を読み、Jinja2 で HTML を生成する（フェーズ1の骨格）。"""
+"""reports_index.json を読み、トップページ（レポート一覧）HTML を生成する。"""
 
 from __future__ import annotations
 
@@ -23,15 +23,15 @@ def main() -> int:
         "-i",
         "--input",
         type=Path,
-        required=True,
-        help="レポート用 JSON（ルートに report オブジェクト）",
+        default=Path(__file__).resolve().parent / "data" / "reports_index.json",
+        help="レポート一覧 JSON（デフォルト: src/data/reports_index.json）",
     )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
         required=True,
-        help="出力 HTML パス",
+        help="出力 HTML パス（例: _site/index.html）",
     )
     parser.add_argument(
         "--password-hash",
@@ -40,28 +40,27 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    try:
+        reports = json.loads(args.input.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"error: failed to read reports index: {e}", file=sys.stderr)
+        return 1
+
     src_dir = Path(__file__).resolve().parent
     template_dir = src_dir / "templates"
-
-    try:
-        payload = json.loads(args.input.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as e:
-        print(f"error: failed to read JSON: {e}", file=sys.stderr)
-        return 1
-
-    if "report" not in payload:
-        print("error: JSON root must contain a 'report' object", file=sys.stderr)
-        return 1
 
     env = Environment(
         loader=FileSystemLoader(str(template_dir)),
         autoescape=select_autoescape(["html", "xml"]),
     )
-    template = env.get_template("weekly_report.html.j2")
-    html = template.render(report=payload["report"], password_hash=args.password_hash)
+    template = env.get_template("index.html.j2")
+    # 新しい順に並べる
+    sorted_reports = sorted(reports, key=lambda r: r.get("slug", ""), reverse=True)
+    html = template.render(reports=sorted_reports, password_hash=args.password_hash)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(html, encoding="utf-8")
+    print(f"index.html generated: {args.output} ({len(sorted_reports)} reports)")
     return 0
 
 

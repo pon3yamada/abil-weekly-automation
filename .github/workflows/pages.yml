@@ -1,13 +1,14 @@
-# GitHub Pages: 生成したレポート HTML を公開（main のみ）
-name: Deploy GitHub Pages
+# Shopify データ取得 → レポート HTML 生成 → GitHub Pages デプロイ
+# 手動実行（workflow_dispatch）または毎週月曜 9:00 JST（00:00 UTC）に自動実行
+name: Deploy Weekly Report
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'  # 毎週月曜 09:00 JST
 
 permissions:
-  contents: read
+  contents: write   # レポートファイルとインデックスを repo にコミットするため
   pages: write
   id-token: write
 
@@ -16,28 +17,118 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Python 依存とレポート生成
-        run: |
-          python3 -m pip install -q -r src/requirements.txt
-          python3 src/generate_report.py -i src/data/sample_report.json -o _site/index.html
-          test -s _site/index.html
-          touch _site/.nojekyll
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-  deploy:
-    needs: build
+  build-and-deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # git push のために必要
+
+      - name: Python 依存インストール
+        run: python3 -m pip install -q -r src/requirements.txt
+
+      # ── Shopify データ取得 ──────────────────────────────────────────────
+      - name: Shopify データ取得 → build/shopify_fragment.json
+        env:
+          SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_API_VERSION: ${{ secrets.SHOPIFY_API_VERSION }}
+        run: |
+          python3 src/fetch_shopify.py \
+            --merge-into src/data/sample_report.json \
+            -o build/report_merged.json
+
+      # ── 週スラッグを決定 ───────────────────────────────────────────────
+      - name: 週スラッグを決定（WEEK_SLUG 環境変数）
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          from datetime import date, timedelta
+
+          data = json.loads(open("build/report_merged.json").read())
+          period = data["report"].get("period_range", "")
+          # "2026年4月27日（月）〜 2026年5月3日（日）" → 260427-260503
+          import re
+          nums = re.findall(r'(\d{4})年(\d{1,2})月(\d{1,2})日', period)
+          if len(nums) >= 2:
+              s = f"{nums[0][0][2:]}{int(nums[0][1]):02d}{int(nums[0][2]):02d}"
+              e = f"{nums[1][0][2:]}{int(nums[1][1]):02d}{int(nums[1][2]):02d}"
+              slug = f"weekly_report_{s}-{e}"
+          else:
+              today = date.today()
+              mon = today - timedelta(days=today.weekday() + 7)
+              sun = mon + timedelta(days=6)
+              slug = f"weekly_report_{mon.strftime('%y%m%d')}-{sun.strftime('%y%m%d')}"
+
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"WEEK_SLUG={slug}\n")
+              f.write(f"PERIOD_RANGE={period}\n")
+          print(f"Slug: {slug}")
+          EOF
+
+      # ── 個別レポート HTML 生成 ─────────────────────────────────────────
+      - name: レポート HTML 生成
+        env:
+          REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
+        run: |
+          python3 src/generate_report.py \
+            -i build/report_merged.json \
+            -o _site/${{ env.WEEK_SLUG }}/index.html
+          test -s _site/${{ env.WEEK_SLUG }}/index.html
+
+      # ── reports_index.json を更新 ──────────────────────────────────────
+      - name: reports_index.json に今週のエントリを追加
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          from datetime import datetime, timezone
+
+          idx_path = "src/data/reports_index.json"
+          reports = json.loads(open(idx_path).read())
+
+          slug = os.environ["WEEK_SLUG"]
+          period = os.environ["PERIOD_RANGE"]
+          now_jst = datetime.now(timezone.utc).strftime("%Y年%-m月%-d日 %H:%M")
+
+          # 重複を防ぐ（同じスラッグなら上書き）
+          reports = [r for r in reports if r.get("slug") != slug]
+          reports.append({
+              "slug": slug,
+              "period": period,
+              "generated_at": now_jst,
+          })
+
+          open(idx_path, "w").write(json.dumps(reports, ensure_ascii=False, indent=2) + "\n")
+          print(f"Updated {idx_path}: {len(reports)} reports")
+          EOF
+
+      # ── トップページ（一覧）HTML 生成 ──────────────────────────────────
+      - name: トップページ（レポート一覧）生成
+        env:
+          REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
+        run: |
+          python3 src/generate_index.py -o _site/index.html
+          test -s _site/index.html
+          touch _site/.nojekyll
+
+      # ── repo にコミット（レポートファイル + インデックスを永続化）────────
+      - name: 新レポートを repo にコミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add _site/${{ env.WEEK_SLUG }}/
+          git add src/data/reports_index.json
+          git diff --cached --quiet || git commit -m "report: ${{ env.WEEK_SLUG }}"
+          git push
+
+      # ── GitHub Pages デプロイ ──────────────────────────────────────────
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
       - id: deployment
         uses: actions/deploy-pages@v4
