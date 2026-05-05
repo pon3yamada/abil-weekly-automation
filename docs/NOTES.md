@@ -35,11 +35,21 @@
   - **回避策として検討すべき選択肢**
     1. Google Analytics 4 API（フェーズ5で実装予定）からセッション数を取得して補完
     2. Shopify Plus にアップグレードすれば `analyticsReport` が利用可能になる
+  - **スコープ追加（`read_reports` / `read_customer_events`）の着手タイミング**
+    → **フェーズ9（Slack Webhook）完了後**に実施する（2026-05-06 決定）
 
-- **次にやること**
+- **次にやること（新チャットで続ける）**
   - フェーズ4: **Meta 広告 API 連携**（`fetch_meta.py` 新規作成）
-    - `.env` に `META_ACCESS_TOKEN` / `META_AD_ACCOUNT_ID` を設定（未記入）
+    - **中断ポイント**: グラフ API エクスプローラーでトークン取得途中（`ads_read` 追加 → Generate Access Token → `me/adaccounts` で ID 確認）
+    - 取得したら `.env` の `META_ACCESS_TOKEN` と `META_AD_ACCOUNT_ID` を記入
     - Marketing API v21.0 で Insights 取得: spend / purchases_value / clicks / CPC / CVR / ROAS
+    - **トークン取得手順（再開時）**:
+      1. https://developers.facebook.com/tools/explorer/ を開く
+      2. アプリ「ABiLAHiL」を選択済み
+      3. 「許可を追加」→ `ads_read` / `ads_management` を追加
+      4. 「Generate Access Token」をクリック → 承認
+      5. URL欄を `me/adaccounts?fields=id,name` に変更 → 「送信」→ `act_XXXXXXXXXX` を確認
+      6. トークンと ID を `.env` に記入して実装へ
   - フェーズ5: **Google 広告 API 連携**（`fetch_google_ads.py` 新規作成）
     - `google-ads` ライブラリで SearchStream レポート取得
     - GA4 Reporting API でセッション数も取得 → Shopify CV率に転用
