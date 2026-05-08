@@ -237,7 +237,10 @@ def build_meta_metrics(cur: dict, prev: dict, campaigns=None) -> dict:
         },
     ]
 
-    result: dict = {"metrics": metrics}
+    result: dict = {
+        "metrics": metrics,
+        "_raw": {"cost": spend_cur, "prev_cost": spend_prev, "roas": roas_cur},
+    }
     if campaigns is not None:
         result["campaigns"] = campaigns
     return result

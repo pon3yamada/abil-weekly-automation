@@ -280,7 +280,11 @@ def build_google_metrics(cur: dict, prev: dict) -> dict:
             "cvr": f"{c['cvr']:.2f}%",
         })
 
-    return {"metrics": metrics, "campaigns": campaigns_table}
+    return {
+        "metrics": metrics,
+        "campaigns": campaigns_table,
+        "_raw": {"cost": cost_cur, "roas": roas_cur},
+    }
 
 
 def update_compare(report: dict, cur: dict) -> None:
@@ -337,6 +341,71 @@ def update_compare(report: dict, cur: dict) -> None:
         "meta_value": m_cvr_str,
         "google_value": f"{cvr_g:.2f}%",
     }
+
+
+def update_summary(report: dict, cur: dict, prev: dict) -> None:
+    """summary.ad_spend と summary.mer を実データで更新する。"""
+    summary = report.setdefault("summary", {})
+
+    # 広告費（Google + Meta）
+    g_cost_cur = cur.get("cost", 0)
+    g_cost_prev = prev.get("cost", 0)
+    meta_raw = report.get("meta_ads", {}).get("_raw", {})
+    m_cost_cur = meta_raw.get("cost", 0)
+    m_cost_prev = meta_raw.get("prev_cost", 0)
+    total_cost_cur = g_cost_cur + m_cost_cur
+    total_cost_prev = g_cost_prev + m_cost_prev
+
+    # 増減率
+    if total_cost_prev > 0:
+        pct = (total_cost_cur - total_cost_prev) / total_cost_prev * 100
+        sign = "▲" if pct > 0 else "▼"
+        delta_str = f"{sign} {abs(pct):.1f}%"
+        delta_cls = "metric-down" if pct > 0 else "metric-up"
+    else:
+        delta_str = "—"
+        delta_cls = "metric-neutral"
+
+    ad_spend = summary.setdefault("ad_spend", {})
+    ad_spend["value"] = f"¥{int(total_cost_cur):,}"
+    ad_spend["delta"] = delta_str
+    ad_spend["delta_class"] = delta_cls
+
+    # 売上を summary.sales から取得してパース
+    sales_str = summary.get("sales", {}).get("value", "")
+    try:
+        sales_val = float(sales_str.replace("¥", "").replace(",", ""))
+    except ValueError:
+        sales_val = 0
+
+    # MER（広告費 ÷ 売上）
+    if sales_val > 0 and total_cost_cur > 0:
+        mer_cur = total_cost_cur / sales_val * 100
+        if total_cost_prev > 0 and sales_val > 0:
+            mer_prev = total_cost_prev / sales_val * 100
+            mer_diff = mer_cur - mer_prev
+            mer_sign = "→" if abs(mer_diff) < 0.1 else ("▲" if mer_diff > 0 else "▼")
+            prior_label = f"{mer_sign} 先週 {mer_prev:.1f}%"
+        else:
+            prior_label = "—"
+        mer_status = "良好" if mer_cur <= 30 else ("注意" if mer_cur <= 40 else "要改善")
+        mer_status_class = "text-green-600 font-bold" if mer_cur <= 30 else ("text-yellow-600 font-bold" if mer_cur <= 40 else "text-red-600 font-bold")
+        mer_gauge = min(round(mer_cur / 50 * 100), 100)
+
+        summary.setdefault("mer", {}).update({
+            "value": f"{mer_cur:.1f}%",
+            "prior_label": prior_label,
+            "prior_class": "metric-up text-gray-500",
+            "status": mer_status,
+            "status_class": mer_status_class,
+            "gauge_pct": mer_gauge,
+        })
+
+    print(
+        f"[Summary] 広告費合計: ¥{int(total_cost_cur):,} "
+        f"（Google ¥{int(g_cost_cur):,} + Meta ¥{int(m_cost_cur):,}）",
+        file=sys.stderr,
+    )
 
 
 # ── エントリポイント ───────────────────────────────────────────────────────────
@@ -432,6 +501,7 @@ def main() -> None:
     if cur:
         report["report"]["google_ads"] = build_google_metrics(cur, prev)
         update_compare(report["report"], cur)
+        update_summary(report["report"], cur, prev)
         print("[Google] google_ads セクションを更新しました", file=sys.stderr)
     else:
         print("[Google] データ取得失敗のため google_ads は未更新", file=sys.stderr)
