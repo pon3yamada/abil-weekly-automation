@@ -188,6 +188,8 @@ def build_google_metrics(cur: dict, prev: dict) -> dict:
     cvr_prev = prev.get("cvr", 0)
     roas_cur = cur.get("roas", 0)
     roas_prev = prev.get("roas", 0)
+    cpa_cur = cost_cur / cv_cur if cv_cur > 0 else 0
+    cpa_prev = cost_prev / cv_prev if cv_prev > 0 else 0
 
     metrics = [
         {
@@ -207,6 +209,12 @@ def build_google_metrics(cur: dict, prev: dict) -> dict:
             "value": f"{int(cv_cur)}件",
             "delta": _pct_str(cv_cur, cv_prev),
             "delta_class": _delta_class(cv_cur, cv_prev),
+        },
+        {
+            "label": "コンバージョン単価（CPA）",
+            "value": yen(cpa_cur),
+            "delta": _pct_str(cpa_cur, cpa_prev),
+            "delta_class": _delta_class(cpa_cur, cpa_prev, invert=True),
         },
         {
             "label": "クリック数",
