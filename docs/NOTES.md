@@ -13,6 +13,59 @@
 - メモ:
 ```
 
+### 2026-05-08 — Google 広告 API 連携（フェーズ5）実装・ローカル確認完了
+
+- **やったこと**
+  - `src/fetch_google_ads.py` を新規作成・ローカル動作確認済み
+    - **gRPC ではなく REST API（requests）を使用**
+      - 理由: Python 3.9 + grpcio 1.80 の互換性問題（`GRPC target method can't be resolved`）
+      - `google-ads` ライブラリは不使用。`requests` で直接 REST API を呼び出す
+    - **API バージョン: `v20`**（v19 は 2026年5月時点で廃止済み → 404 を返す）
+    - キャンペーンレベルで集計（GAQL: `FROM campaign WHERE segments.date BETWEEN ...`）
+    - 取得指標: cost / clicks / conversions / conversions_value / CPC / CVR / ROAS
+    - 当週・前週を取得して先週比を算出
+    - `compare` セクション（Meta vs Google の ROAS/CPC/CVR）も更新
+    - グレースフルデグレード: API 失敗時は stderr 出力のみ・既存 JSON を維持
+    - MCC 経由アクセスは `GOOGLE_ADS_LOGIN_CUSTOMER_ID` ヘッダーで対応
+  - `.env` に認証情報を記入・保存済み
+  - `docs/ROADMAP.md` のフェーズ4を「✅ 完了」に更新
+  - ローカル取得結果（2026-04-27〜05-03）:
+    - 当週: 広告費 ¥108,157 / クリック 1,149 / CV 19件 / ROAS 1.75×
+    - 前週: 広告費 ¥102,496 / クリック 996 / CV 26件 / ROAS 2.55×
+
+- **トラブルシューティングまとめ（次回のために）**
+  - `invalid_grant`: refresh_token 失効 → OAuth 2.0 Playground で再取得（テストアプリは7日で失効）
+  - `invalid_client`: Playground の Client ID 入力ミス → Google Cloud Console からコピーアイコンで再取得
+  - `GRPC target method can't be resolved`: grpcio が Python 3.9 で動かない → REST API に切り替え済み
+  - `404` on REST: API バージョンが廃止済み → `v20` に変更済み（v20/v21/v22 が 2026-05 時点で有効）
+
+- **OAuth 同意画面について（重要）**
+  - 現在「テスト」ステータス → **refresh_token が7日で失効する**
+  - 対策: Google Cloud Console → 「OAuth 同意画面」→ **「アプリを公開」** で本番環境へ
+  - 社内ツールのため審査不要で即時公開可能。公開後は refresh_token が無期限になる
+
+- **次にやること（新チャットで続ける）**
+  - Google Cloud Console で **OAuth 同意画面を「本番環境」に公開**（refresh_token 無期限化）
+  - **GitHub Secrets** に以下を登録（CI で動かすために必要）:
+    - `GOOGLE_ADS_DEVELOPER_TOKEN` / `GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET`
+    - `GOOGLE_ADS_REFRESH_TOKEN` / `GOOGLE_ADS_CUSTOMER_ID` / `GOOGLE_ADS_LOGIN_CUSTOMER_ID`
+    - `META_ACCESS_TOKEN` / `META_AD_ACCOUNT_ID` / `META_TOKEN_GENERATED_AT`
+    - `SLACK_WEBHOOK_URL`（`token_expiry_check.yml` 用）
+  - Actions を**手動実行**して Shopify + Meta + Google がすべて緑になることを確認
+  - フェーズ6: **Google Sheets** への蓄積
+
+- **重要ファイル（更新）**
+  - `src/fetch_google_ads.py`: 新規作成（REST API v20 使用）
+  - `src/requirements.txt`: `google-ads>=25.0,<26` 追加（ただし現在は未使用）
+  - `.github/workflows/pages.yml`: Google Ads ステップ追加済み
+  - `.env`: `GOOGLE_ADS_*` 記入済み
+
+- **Google Ads 設定まとめ**
+  - OAuth クライアント: `ABiL週次レポート - OAuth Web`（Google Cloud）
+  - 広告アカウント（子）: `GOOGLE_ADS_CUSTOMER_ID=7645332705`
+  - MCC: `GOOGLE_ADS_LOGIN_CUSTOMER_ID=7453809503`
+  - API バージョン: `v20`（`src/fetch_google_ads.py` の `GOOGLE_ADS_API_VERSION`）
+
 ### 2026-05-08 — Meta 広告 API 連携（フェーズ4）完了
 
 - **やったこと**

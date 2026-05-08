@@ -1,3 +1,4 @@
 Jinja2>=3.1,<4
 requests>=2.31,<3
 python-dotenv>=1.0,<2
+# google-ads>=25.0,<26  # REST API 直接呼び出しに切り替えたため現在未使用

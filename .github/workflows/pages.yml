@@ -53,6 +53,21 @@ jobs:
             --out  build/report_merged.json
         continue-on-error: true   # Meta API 失敗時もレポート生成を継続
 
+      # ── Google 広告データ取得 ──────────────────────────────────────────
+      - name: Google 広告データ取得 → build/report_merged.json に追記
+        env:
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+          GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_CUSTOMER_ID }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+        run: |
+          python3 src/fetch_google_ads.py \
+            --base build/report_merged.json \
+            --out  build/report_merged.json
+        continue-on-error: true   # Google API 失敗時もレポート生成を継続
+
       # ── 週スラッグを決定 ───────────────────────────────────────────────
       - name: 週スラッグを決定（WEEK_SLUG 環境変数）
         run: |
