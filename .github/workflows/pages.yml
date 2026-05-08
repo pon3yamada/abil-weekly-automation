@@ -68,6 +68,16 @@ jobs:
             --out  build/report_merged.json
         continue-on-error: true   # Google API 失敗時もレポート生成を継続
 
+      # ── Google Sheets にデータ追記（週次蓄積）────────────────────────────
+      - name: Google Sheets に週次データを追記
+        env:
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+        run: |
+          python3 src/append_to_sheets.py \
+            --base build/report_merged.json
+        continue-on-error: true   # Sheets 書き込み失敗時もレポート生成を継続
+
       # ── 週スラッグを決定 ───────────────────────────────────────────────
       - name: 週スラッグを決定（WEEK_SLUG 環境変数）
         run: |

@@ -13,6 +13,59 @@
 - メモ:
 ```
 
+### 2026-05-08 — Google Sheets 週次蓄積（フェーズ6 完了）
+
+- **やったこと**
+  - `src/append_to_sheets.py` を新規作成
+    - Service Account JSON（環境変数 `GOOGLE_SHEETS_CREDENTIALS`）で認証
+    - `build/report_merged.json` を読み込み、以下の **23 列** を 1 行として Sheets に追記
+      - 期間 / 売上 / 広告費合計 / MER
+      - Shopify: 注文件数 / 売上 / AOV / 既存顧客比率
+      - Meta: 広告費 / CV / CPA / クリック / CPC / CVR / ROAS
+      - Google: 広告費 / CV / CPA / クリック / CPC / CVR / ROAS
+      - 生成日時
+    - 同一期間（`period_range`）の行が既にある場合は**上書き**、なければ末尾に**追加**
+    - シート名デフォルト: `週次データ`（`GOOGLE_SHEETS_SHEET_NAME` で変更可）
+    - ヘッダー行が存在しない場合は自動作成
+    - `continue-on-error: true` のため、Sheets 書き込み失敗時もレポート生成を継続
+  - `src/requirements.txt` に `gspread>=6.0,<7` / `google-auth>=2.20,<3` を追加
+  - `.github/workflows/pages.yml` に「Google Sheets に週次データを追記」ステップを追加
+    （Google 広告取得ステップの直後・週スラッグ決定ステップの直前）
+  - `docs/ROADMAP.md` フェーズ6を「✅ 完了」に更新
+
+- **GitHub Secrets に追加が必要なもの**
+  - `GOOGLE_SHEETS_CREDENTIALS`: Service Account JSON をそのまま貼り付ける（改行あり可）
+  - `GOOGLE_SHEETS_SPREADSHEET_ID`: 書き込み先スプレッドシートの ID
+    （URL: `https://docs.google.com/spreadsheets/d/<ここ>/edit`）
+  - （任意）`GOOGLE_SHEETS_SHEET_NAME`: シート名（デフォルト: `週次データ`）
+
+- **Service Account の作り方（初回のみ）**
+  1. Google Cloud Console → IAM と管理 → サービスアカウント → 「作成」
+     - 名前例: `abil-weekly-sheets`
+  2. キー → JSON でダウンロード
+  3. Google Sheets のスプレッドシートを開き、「共有」にサービスアカウントのメールアドレスを**編集者**として追加
+  4. JSON の中身を GitHub Secrets の `GOOGLE_SHEETS_CREDENTIALS` に貼り付け
+
+- **ローカルでの動作確認方法**
+  ```bash
+  # .env に以下を追加
+  # GOOGLE_SHEETS_CREDENTIALS_FILE=/path/to/service-account.json
+  # GOOGLE_SHEETS_SPREADSHEET_ID=<スプレッドシートID>
+
+  python3 src/append_to_sheets.py --base build/report_merged.json
+  ```
+
+- **重要ファイル（追加）**
+  - `src/append_to_sheets.py`: 新規作成
+  - `src/requirements.txt`: gspread / google-auth 追加
+  - `.github/workflows/pages.yml`: Sheets ステップ追加
+
+- **次にやること**
+  - フェーズ7: **異常値検知**（閾値・先週比でアラート文言を実データ駆動に）
+  - フェーズ8: **Claude API** で改善アクション3件を自動生成
+
+---
+
 ### 2026-05-08 — キャンペーン別内訳・CPA・全体サマリー実数化（フェーズ5 完了）
 
 - **やったこと**
