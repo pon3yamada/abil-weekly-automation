@@ -97,8 +97,10 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
 
     access_token = _get_access_token(client_id, client_secret, refresh_token)
 
+    # engagements を含めることで管理画面と同じ CVR を再現
+    # CVR = conversions / (clicks + engagements)  ← Google Ads 管理画面の定義
     query = (
-        "SELECT metrics.cost_micros, metrics.clicks, "
+        "SELECT metrics.cost_micros, metrics.clicks, metrics.engagements, "
         "metrics.conversions, metrics.conversions_value "
         f"FROM campaign "
         f"WHERE segments.date BETWEEN '{since}' AND '{until}' "
@@ -119,6 +121,7 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
 
     total_cost_micros = 0
     total_clicks = 0
+    total_engagements = 0
     total_conversions = 0.0
     total_conversions_value = 0.0
     page_token: str | None = None
@@ -137,6 +140,7 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
             m = row.get("metrics", {})
             total_cost_micros += int(m.get("costMicros", 0))
             total_clicks += int(m.get("clicks", 0))
+            total_engagements += int(m.get("engagements", 0))
             total_conversions += float(m.get("conversions", 0))
             total_conversions_value += float(m.get("conversionsValue", 0))
 
@@ -145,8 +149,10 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
             break
 
     cost = total_cost_micros / MICROS
+    # 管理画面と同じ定義: CVR = conversions / (clicks + engagements)
+    interactions = total_clicks + total_engagements
     cpc = cost / total_clicks if total_clicks > 0 else 0.0
-    cvr = total_conversions / total_clicks * 100 if total_clicks > 0 else 0.0
+    cvr = total_conversions / interactions * 100 if interactions > 0 else 0.0
     roas = total_conversions_value / cost if cost > 0 else 0.0
 
     return {
