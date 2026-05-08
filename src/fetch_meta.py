@@ -139,6 +139,8 @@ def build_meta_metrics(cur: dict, prev: dict) -> dict:
     cvr_prev = prev.get("cvr", 0)
     roas_cur = cur.get("roas", 0)
     roas_prev = prev.get("roas", 0)
+    cpa_cur = spend_cur / purchases_cur if purchases_cur > 0 else 0
+    cpa_prev = spend_prev / purchases_prev if purchases_prev > 0 else 0
 
     metrics = [
         {
@@ -158,6 +160,12 @@ def build_meta_metrics(cur: dict, prev: dict) -> dict:
             "value": f"{int(purchases_cur)}件",
             "delta": _pct_str(purchases_cur, purchases_prev),
             "delta_class": _delta_class(purchases_cur, purchases_prev),
+        },
+        {
+            "label": "コンバージョン単価（CPA）",
+            "value": yen(cpa_cur),
+            "delta": _pct_str(cpa_cur, cpa_prev),
+            "delta_class": _delta_class(cpa_cur, cpa_prev, invert=True),
         },
         {
             "label": "クリック数",
