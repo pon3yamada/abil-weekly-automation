@@ -13,6 +13,29 @@
 - メモ:
 ```
 
+### 2026-05-08 — チェックポイント（フェーズ8・9 実装・LLM 運用の区切り）
+
+- **やったこと（この区切りまで）**
+  - `src/generate_actions.py`: **Anthropic (Claude)** または **OpenAI**（既定モデル `gpt-5.5`、`OPENAI_MODEL` で上書き可）で `report.actions` を3件生成。`--soft-fail` / `GENERATE_ACTIONS_SOFT_FAIL` で API 失敗時も既存 `actions` を維持して終了コード0。成功時のみ `report.actions_meta`（`source` / `model` / `generated_at`）。
+  - `src/post_slack.py`: Pages デプロイ後に **Slack Incoming Webhook** でレポート URL と短文サマリー投稿（未設定時はスキップ）。
+  - `.github/workflows/pages.yml`: 上記を組み込み。LLM ステップに `OPENAI_API_KEY`・`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER` 等を `env` で渡し可能。
+  - `docs/ROADMAP.md`: フェーズ8・9 を完了表記。フェーズ7は後回しのまま。
+  - Repository に **改善アクション用の API キー**（例: **`OPENAI_API_KEY`**、`ANTHROPIC_API_KEY`）を Secrets へ登録する運用になる。
+
+- **次にやること（再開時・優先の目安）**
+  1. **LLM の動作確認**: Actions の「**LLM で改善アクションを生成**」ステップのログを開き、エラーなし・`actions_meta` が意図どおりか確認。ローカルなら `.env` で `python3 src/generate_actions.py --base … --out …`（必要なら `--soft-fail` なしで失敗を明示）。
+  2. **改善アクションが HTML で変わらないとき**（よくある原因）: `ANTHROPIC_API_KEY` と `OPENAI_API_KEY` **両方が Secrets にある**と **既定で Anthropic が優先**される。OpenAI だけ使いたい場合は Secret **`GENERATE_ACTIONS_PROVIDER`** = `openai` を追加するか、未使用の Anthropic 用 Secret を削除。API エラー時は `--soft-fail` のため **ステップは緑でも中身はサンプルのまま** — ログに `error: …改善アクション生成に失敗` が出ていないか見る。
+  3. **マイルストーン**: [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10**（Shopify スコープでセッション・CVR 実数化）または **フェーズ7**（異常値検知・アラート）。
+
+- **GitHub Secrets（LLM / Slack 関連の目安）**
+  - 改善アクション: `ANTHROPIC_API_KEY`（任意） / `ANTHROPIC_MODEL`（任意） / `OPENAI_API_KEY`（任意） / `OPENAI_MODEL`（任意） / **`GENERATE_ACTIONS_PROVIDER`**（`openai` または `anthropic` — 両キーがあるときの優先を固定したい場合）
+  - Slack: `SLACK_WEBHOOK_URL`（任意）
+  - 登録手順の要約: Repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**（名前はワークフローの `secrets.名前` と完全一致）
+
+- **重要ファイル**
+  - `src/generate_actions.py` / `src/post_slack.py` / `.github/workflows/pages.yml`
+  - `.env.example` — LLM 用の変数名の参照用
+
 ### 2026-05-08 — Google Sheets 週次蓄積（フェーズ6 完了）
 
 - **やったこと**
@@ -48,9 +71,9 @@
 - **重要ファイル**
   - `src/append_to_sheets.py` / `src/requirements.txt` / `.github/workflows/pages.yml`
 
-- **次にやること**
-  - フェーズ7: **異常値検知**（閾値・先週比でアラート文言を実データ駆動に）
-  - フェーズ8: **Claude API** で改善アクション3件を自動生成
+- **次にやること**（※当時のメモ。現在の優先は [ROADMAP](./ROADMAP.md) と、このファイル先頭の「チェックポイント」セクションを参照）
+  - フェーズ7: 異常値検知
+  - フェーズ8: LLM による改善アクション（**2026-05-08 実装済み**）
 
 ---
 
@@ -86,10 +109,10 @@
   - `src/fetch_meta.py`: CPA 追加 / campaigns[] 追加（/insights?level=campaign）/ _raw 追加
   - `src/templates/weekly_report.html.j2`: キャンペーン別テーブル追加（Meta・Google 両タブ）
 
-- **次にやること**
-  - フェーズ6: **Google Sheets** への週次データ蓄積（過去推移の保存）
-  - フェーズ7: **異常値検知**（アラート文言を実データ駆動に）
-  - フェーズ8: **Claude API** で改善アクション3件を自動生成
+- **次にやること**（※当時のメモ。**フェーズ6・8・9 は後続で完了**。現状は [ROADMAP](./ROADMAP.md) 参照）
+  - ~~フェーズ6: Google Sheets~~ 完了
+  - フェーズ7: 異常値検知（未着手）
+  - ~~フェーズ8: LLM 改善アクション~~ 実装済み（OpenAI / Anthropic 対応）
 
 ---
 
@@ -196,7 +219,7 @@
     1. Google Analytics 4 API（フェーズ5で実装予定）からセッション数を取得して補完
     2. Shopify Plus にアップグレードすれば `analyticsReport` が利用可能になる
   - **スコープ追加（`read_reports` / `read_customer_events`）の着手タイミング**
-    → **フェーズ9（Slack Webhook）完了後**に実施する（2026-05-06 決定）
+    → **フェーズ9（Slack Webhook）完了後**に実施する（2026-05-06 決定）。（**2026-05-08 追記**: フェーズ9は完了。**フェーズ10** は `docs/ROADMAP.md` のとおりスコープ追加で実数化）
 
 - **次にやること（新チャットで続ける）**
   - フェーズ4: **Meta 広告 API 連携**（`fetch_meta.py` 新規作成）

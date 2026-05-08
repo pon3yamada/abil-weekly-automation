@@ -40,7 +40,7 @@ abil-weekly-automation/
 
 ## 環境変数
 
-ローカルではこのフォルダ直下に `.env` を作成し（`.gitignore` 済み）、`.env.example` を参考にキー名だけ合わせる。値はリポジトリにコミットしない。
+ローカルではこのフォルダ直下に `.env` を作成し（`.gitignore` 済み）、[.env.example](./.env.example) を参考にキー名だけ合わせる。値はリポジトリにコミットしない。週次デプロイ用の **LLM（OpenAI / Anthropic）** と **Slack** の変数名も `.env.example` に記載あり。運用の区切り・再開メモは [docs/NOTES.md](./docs/NOTES.md) 先頭のチェックポイントを参照。
 
 ## 関連ファイル
 

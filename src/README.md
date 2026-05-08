@@ -34,7 +34,7 @@ python3 src/fetch_google_ads.py --base build/report_merged.json --out build/repo
 # 4. Google Sheets に週次列を追記（任意・.env に GOOGLE_SHEETS_SPREADSHEET_ID と認証情報）
 python3 src/append_to_sheets.py --base build/report_merged.json
 
-# 5. Claude で改善アクションを生成（任意・.env に ANTHROPIC_API_KEY。CI と同様にフォールバックするなら --soft-fail）
+# 5. LLM で改善アクションを生成（任意・`ANTHROPIC_API_KEY` または `OPENAI_API_KEY`。CI と同様にフォールバックするなら --soft-fail）
 python3 src/generate_actions.py --base build/report_merged.json --out build/report_merged.json --soft-fail
 
 # 6. HTML 生成
@@ -64,7 +64,7 @@ python3 src/generate_report.py -i build/report.json -o build/report.html
 
 ## GitHub Pages（週次デプロイ）
 
-**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → （任意）**Claude で `actions` を更新** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → Pages デプロイ → （任意）**Slack に URL 通知**。GitHub Secrets に `ANTHROPIC_API_KEY` / `SLACK_WEBHOOK_URL` を足すと有効になります。
+**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → （任意）**LLM で `report.actions` を更新** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → Pages デプロイ → （任意）**Slack に URL 通知**。改善アクション用に **`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`** のほか、`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER`・`GENERATE_ACTIONS_SOFT_FAIL`（ワークフローでは `--soft-fail` が付与済み）を Repository secrets で渡せます。Slack は `SLACK_WEBHOOK_URL`。未設定のキーはスキップされます。
 
 GitHub 上では **Settings → Pages → Build and deployment** の **Source** を **GitHub Actions** にしてください。カスタムドメインを使う場合は同画面で設定します。
 
