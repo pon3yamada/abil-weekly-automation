@@ -100,7 +100,8 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
     # engagements を含めることで管理画面と同じ CVR を再現
     # CVR = conversions / (clicks + engagements)  ← Google Ads 管理画面の定義
     query = (
-        "SELECT metrics.cost_micros, metrics.clicks, metrics.engagements, "
+        "SELECT campaign.name, campaign.status, "
+        "metrics.cost_micros, metrics.clicks, metrics.engagements, "
         "metrics.conversions, metrics.conversions_value "
         f"FROM campaign "
         f"WHERE segments.date BETWEEN '{since}' AND '{until}' "
@@ -124,6 +125,7 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
     total_engagements = 0
     total_conversions = 0.0
     total_conversions_value = 0.0
+    campaign_rows: list[dict] = []
     page_token: str | None = None
 
     while True:
@@ -138,11 +140,30 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
 
         for row in data.get("results", []):
             m = row.get("metrics", {})
-            total_cost_micros += int(m.get("costMicros", 0))
-            total_clicks += int(m.get("clicks", 0))
-            total_engagements += int(m.get("engagements", 0))
-            total_conversions += float(m.get("conversions", 0))
-            total_conversions_value += float(m.get("conversionsValue", 0))
+            c_cost = int(m.get("costMicros", 0))
+            c_clicks = int(m.get("clicks", 0))
+            c_eng = int(m.get("engagements", 0))
+            c_cv = float(m.get("conversions", 0))
+            c_val = float(m.get("conversionsValue", 0))
+            total_cost_micros += c_cost
+            total_clicks += c_clicks
+            total_engagements += c_eng
+            total_conversions += c_cv
+            total_conversions_value += c_val
+            # キャンペーン別データ（費用があるものだけ保持）
+            if c_cost > 0:
+                c_cost_yen = c_cost / MICROS
+                c_inter = c_clicks + c_eng
+                campaign_rows.append({
+                    "name": row.get("campaign", {}).get("name", "不明"),
+                    "cost": c_cost_yen,
+                    "clicks": c_clicks,
+                    "conversions": c_cv,
+                    "conversions_value": c_val,
+                    "cpa": c_cost_yen / c_cv if c_cv > 0 else 0,
+                    "roas": c_val / c_cost_yen if c_cost_yen > 0 else 0,
+                    "cvr": c_cv / c_inter * 100 if c_inter > 0 else 0,
+                })
 
         page_token = data.get("nextPageToken")
         if not page_token:
@@ -155,6 +176,9 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
     cvr = total_conversions / interactions * 100 if interactions > 0 else 0.0
     roas = total_conversions_value / cost if cost > 0 else 0.0
 
+    # 広告費の多い順にソート
+    campaign_rows.sort(key=lambda x: x["cost"], reverse=True)
+
     return {
         "cost": cost,
         "clicks": total_clicks,
@@ -163,6 +187,7 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
         "cpc": cpc,
         "cvr": cvr,
         "roas": roas,
+        "campaigns": campaign_rows,
     }
 
 
@@ -243,7 +268,19 @@ def build_google_metrics(cur: dict, prev: dict) -> dict:
         },
     ]
 
-    return {"metrics": metrics}
+    # キャンペーン別テーブル
+    campaigns_table = []
+    for c in cur.get("campaigns", []):
+        campaigns_table.append({
+            "name": c["name"],
+            "cost": yen(c["cost"]),
+            "cv": f"{int(c['conversions'])}件",
+            "cpa": yen(c["cpa"]) if c["cpa"] > 0 else "—",
+            "roas": f"{c['roas']:.2f}×" if c["roas"] > 0 else "—",
+            "cvr": f"{c['cvr']:.2f}%",
+        })
+
+    return {"metrics": metrics, "campaigns": campaigns_table}
 
 
 def update_compare(report: dict, cur: dict) -> None:

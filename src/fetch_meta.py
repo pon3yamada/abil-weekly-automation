@@ -83,6 +83,24 @@ def fetch_insights(token: str, ad_account_id: str, since: str, until: str) -> di
     return items[0]
 
 
+def fetch_campaign_insights(token: str, ad_account_id: str, since: str, until: str) -> list[dict]:
+    """指定期間のキャンペーン別広告インサイトを取得する。"""
+    url = f"{META_GRAPH_BASE}/{ad_account_id}/insights"
+    params = {
+        "access_token": token,
+        "fields": "campaign_name,spend,clicks,actions,action_values",
+        "time_range": json.dumps({"since": since, "until": until}),
+        "level": "campaign",
+        "limit": 50,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    if "error" in data:
+        raise RuntimeError(f"Meta API エラー（キャンペーン別）: {data['error']}")
+    return data.get("data", [])
+
+
 def _action_value(rows: list[dict], action_type: str) -> float:
     for row in rows or []:
         if row.get("action_type") == action_type:
@@ -119,7 +137,32 @@ def parse_insights(raw: dict) -> dict:
 
 # ── JSON ブロック組み立て ──────────────────────────────────────────────────────
 
-def build_meta_metrics(cur: dict, prev: dict) -> dict:
+def build_campaign_rows(raw_campaigns: list[dict]) -> list[dict]:
+    """Meta キャンペーン別インサイトからテーブル用データを組み立てる。"""
+    rows = []
+    for raw in raw_campaigns:
+        spend = float(raw.get("spend", 0))
+        if spend <= 0:
+            continue
+        clicks = float(raw.get("clicks", 0))
+        actions = raw.get("actions", [])
+        action_values = raw.get("action_values", [])
+        cv = _action_value(actions, "purchase")
+        cv_value = _action_value(action_values, "purchase")
+        cpa = spend / cv if cv > 0 else 0
+        roas = cv_value / spend if spend > 0 else 0
+        rows.append({
+            "name": raw.get("campaign_name", "不明"),
+            "cost": f"¥{int(spend):,}",
+            "cv": f"{int(cv)}件",
+            "cpa": f"¥{int(cpa):,}" if cpa > 0 else "—",
+            "roas": f"{roas:.2f}×" if roas > 0 else "—",
+        })
+    rows.sort(key=lambda x: -float(x["cost"].replace("¥", "").replace(",", "")))
+    return rows
+
+
+def build_meta_metrics(cur: dict, prev: dict, campaigns=None) -> dict:
     """cur/prev の指標辞書から meta_ads JSON ブロックを組み立てる。"""
 
     def yen(v: float) -> str:
@@ -194,7 +237,10 @@ def build_meta_metrics(cur: dict, prev: dict) -> dict:
         },
     ]
 
-    return {"metrics": metrics}
+    result: dict = {"metrics": metrics}
+    if campaigns is not None:
+        result["campaigns"] = campaigns
+    return result
 
 
 def update_compare(report: dict, cur: dict) -> None:
@@ -335,6 +381,14 @@ def main() -> None:
     except Exception as exc:
         print(f"[Meta] 前週取得エラー: {exc}", file=sys.stderr)
 
+    # キャンペーン別取得
+    raw_campaigns: list[dict] = []
+    try:
+        raw_campaigns = fetch_campaign_insights(token, ad_account_id, since_cur, until_cur)
+        print(f"[Meta] キャンペーン数: {len(raw_campaigns)}", file=sys.stderr)
+    except Exception as exc:
+        print(f"[Meta] キャンペーン別取得エラー: {exc}", file=sys.stderr)
+
     # ベース JSON 読み込み
     base_path = Path(args.base)
     if base_path.exists():
@@ -345,7 +399,8 @@ def main() -> None:
 
     # meta_ads セクション更新
     if cur:
-        report["report"]["meta_ads"] = build_meta_metrics(cur, prev)
+        campaigns_table = build_campaign_rows(raw_campaigns) if raw_campaigns else None
+        report["report"]["meta_ads"] = build_meta_metrics(cur, prev, campaigns=campaigns_table)
         update_compare(report["report"], cur)
         print("[Meta] meta_ads セクションを更新しました", file=sys.stderr)
     else:
