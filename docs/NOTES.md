@@ -16,49 +16,37 @@
 ### 2026-05-08 — Google Sheets 週次蓄積（フェーズ6 完了）
 
 - **やったこと**
-  - `src/append_to_sheets.py` を新規作成
-    - Service Account JSON（環境変数 `GOOGLE_SHEETS_CREDENTIALS`）で認証
-    - `build/report_merged.json` を読み込み、以下の **23 列** を 1 行として Sheets に追記
-      - 期間 / 売上 / 広告費合計 / MER
-      - Shopify: 注文件数 / 売上 / AOV / 既存顧客比率
-      - Meta: 広告費 / CV / CPA / クリック / CPC / CVR / ROAS
-      - Google: 広告費 / CV / CPA / クリック / CPC / CVR / ROAS
-      - 生成日時
-    - 同一期間（`period_range`）の行が既にある場合は**上書き**、なければ末尾に**追加**
+  - `src/append_to_sheets.py` を新規作成（`gspread` + Service Account）
+    - **レイアウト**: **A 列**に指標ラベル、**B 列以降**が週ごとのデータ列（新しい週＝右に列が増える）
+    - **行の並び**: 1 行目＝生成日時、2 行目＝期間（JSON の `〜 ` の直前に改行を挿入して 2 行表示）、続けてサマリー → Shopify → Meta → Google
+    - **セクション区切り**: `── Shopify ──` / `── Meta広告 ──` / `── Google広告 ──`（A 列のみ。データ列は空セルで視覚的な余白）
+    - **重複**: 同じ `period_range` の列が既にあれば**その列を上書き**、なければ**右端の次の列**に追記
+    - **書き込みオプション**: 期間セルの改行を反映するため `value_input_option=RAW`
+    - A 列のラベルが期待と違うときはスクリプトが **A 列を書き直す**（初回・構造変更時）
     - シート名デフォルト: `週次データ`（`GOOGLE_SHEETS_SHEET_NAME` で変更可）
-    - ヘッダー行が存在しない場合は自動作成
-    - `continue-on-error: true` のため、Sheets 書き込み失敗時もレポート生成を継続
   - `src/requirements.txt` に `gspread>=6.0,<7` / `google-auth>=2.20,<3` を追加
-  - `.github/workflows/pages.yml` に「Google Sheets に週次データを追記」ステップを追加
-    （Google 広告取得ステップの直後・週スラッグ決定ステップの直前）
+  - `.github/workflows/pages.yml` に「Google Sheets に週次データを追記」ステップを追加（Google 広告の直後・週スラッグ決定の直前、`continue-on-error: true`）
   - `docs/ROADMAP.md` フェーズ6を「✅ 完了」に更新
+  - CI 上で初回書き込みまで動作確認済み
 
-- **GitHub Secrets に追加が必要なもの**
-  - `GOOGLE_SHEETS_CREDENTIALS`: Service Account JSON をそのまま貼り付ける（改行あり可）
-  - `GOOGLE_SHEETS_SPREADSHEET_ID`: 書き込み先スプレッドシートの ID
-    （URL: `https://docs.google.com/spreadsheets/d/<ここ>/edit`）
-  - （任意）`GOOGLE_SHEETS_SHEET_NAME`: シート名（デフォルト: `週次データ`）
+- **初回セットアップで詰まりやすい所**
+  - **Google Sheets API 未使用**: Service Account のプロジェクトで [Sheets API を有効化](https://console.developers.google.com/apis/api/sheets.googleapis.com/overview) しないと `403` になる
+  - **スプレッドシート共有**: Service Account の `client_email` をシートの**編集者**に追加する
 
-- **Service Account の作り方（初回のみ）**
-  1. Google Cloud Console → IAM と管理 → サービスアカウント → 「作成」
-     - 名前例: `abil-weekly-sheets`
-  2. キー → JSON でダウンロード
-  3. Google Sheets のスプレッドシートを開き、「共有」にサービスアカウントのメールアドレスを**編集者**として追加
-  4. JSON の中身を GitHub Secrets の `GOOGLE_SHEETS_CREDENTIALS` に貼り付け
+- **GitHub Secrets**
+  - `GOOGLE_SHEETS_CREDENTIALS`: Service Account の JSON 全文
+  - `GOOGLE_SHEETS_SPREADSHEET_ID`: URL の `/d/<ID>/` 部分
+  - （任意）`GOOGLE_SHEETS_SHEET_NAME`
 
-- **ローカルでの動作確認方法**
-  ```bash
-  # .env に以下を追加
-  # GOOGLE_SHEETS_CREDENTIALS_FILE=/path/to/service-account.json
-  # GOOGLE_SHEETS_SPREADSHEET_ID=<スプレッドシートID>
+- **ローカル**
+  - `.env`: `GOOGLE_SHEETS_CREDENTIALS_FILE`（JSON パス）または `GOOGLE_SHEETS_CREDENTIALS`（JSON 文字列）、`GOOGLE_SHEETS_SPREADSHEET_ID`
+  - `python3 src/append_to_sheets.py --base build/report_merged.json`
 
-  python3 src/append_to_sheets.py --base build/report_merged.json
-  ```
+- **スプレッドシート側の手編集**
+  - 書式・別シートのグラフは自由。A 列の**行の追加・削除**や B 列以降への**列の手動挿入**はズレの原因になるので避けるのが安全（別シートで `=週次データ!B5` のように参照するのがおすすめ）
 
-- **重要ファイル（追加）**
-  - `src/append_to_sheets.py`: 新規作成
-  - `src/requirements.txt`: gspread / google-auth 追加
-  - `.github/workflows/pages.yml`: Sheets ステップ追加
+- **重要ファイル**
+  - `src/append_to_sheets.py` / `src/requirements.txt` / `.github/workflows/pages.yml`
 
 - **次にやること**
   - フェーズ7: **異常値検知**（閾値・先週比でアラート文言を実データ駆動に）

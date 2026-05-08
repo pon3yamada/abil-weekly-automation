@@ -35,7 +35,7 @@ abil-weekly-automation/
 ├── docs/
 │   ├── ROADMAP.md      ← フェーズ・優先順位
 │   └── NOTES.md        ← 作業メモ（任意）
-└── src/                ← Python（`generate_report.py`、テンプレート、サンプル JSON）。詳細は src/README.md
+└── src/                ← Python（取得スクリプト・Sheets 追記・HTML 生成）。詳細は src/README.md
 ```
 
 ## 環境変数

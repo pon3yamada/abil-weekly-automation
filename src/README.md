@@ -2,7 +2,7 @@
 
 週次レポート自動化の **Python コード**を置く場所です。
 
-## 現状（フェーズ5完了）
+## 現状（フェーズ6まで完了）
 
 | ファイル | 役割 |
 |---|---|
@@ -12,7 +12,8 @@
 | `fetch_shopify.py` | Shopify Admin API で注文集計 → `report.shopify` / `report.summary.sales` を更新 |
 | `fetch_meta.py` | Meta Marketing API でインサイト取得 → `report.meta_ads`（指標 + キャンペーン別）を更新 |
 | `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
-| `requirements.txt` | `Jinja2` / `requests` / `python-dotenv` |
+| `append_to_sheets.py` | マージ済み JSON を読み、Google Sheets の「週次データ」シートに週ごと**列**として追記（A 列＝指標）。`.env` に `GOOGLE_SHEETS_*`、CI では [Secrets](../docs/NOTES.md) 参照 |
+| `requirements.txt` | `Jinja2` / `requests` / `python-dotenv` / `gspread` / `google-auth` |
 
 ### フルパイプライン（ローカル確認用）
 
@@ -28,7 +29,10 @@ python3 src/fetch_meta.py --base build/report_with_shopify.json --out build/repo
 # 3. Google 広告データ取得（.env に GOOGLE_ADS_* が必要）
 python3 src/fetch_google_ads.py --base build/report_merged.json --out build/report_merged.json
 
-# 4. HTML 生成
+# 4. Google Sheets に週次列を追記（任意・.env に GOOGLE_SHEETS_SPREADSHEET_ID と認証情報）
+python3 src/append_to_sheets.py --base build/report_merged.json
+
+# 5. HTML 生成
 python3 src/generate_report.py -i build/report_merged.json -o build/report.html
 ```
 
@@ -50,9 +54,11 @@ python3 src/generate_report.py -i build/report.json -o build/report.html
 - 報告対象の週: 店舗タイムゾーンで「基準日の属する週」の**ひとつ前の週**（月〜日）。基準日は既定で実行日。`--anchor-date 2026-05-03` で固定可。
 - テスト注文は既定で除外。`--include-test` で含める。支払済みのみなら `--paid-only`。
 
-## GitHub Pages
+## GitHub Pages（週次デプロイ）
 
-リポジトリ直下の **`.github/workflows/pages.yml`** が、`main` への push のたびに `sample_report.json` から `_site/index.html` を生成して公開します。GitHub 上では **Settings → Pages → Build and deployment** の **Source** を **GitHub Actions** にしてください。既定の公開 URL は `https://<owner>.github.io/<repository>/` です。
+**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → Pages デプロイ。
+
+GitHub 上では **Settings → Pages → Build and deployment** の **Source** を **GitHub Actions** にしてください。カスタムドメインを使う場合は同画面で設定します。
 
 ### 独自ドメイン（例: `tools.abil.shop`）
 
