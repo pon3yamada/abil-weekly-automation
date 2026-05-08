@@ -1,0 +1,128 @@
+# Meta システムユーザートークンの失効アラート
+# 毎日 09:00 JST（00:00 UTC）に実行し、残り 14/10/7/5/4/3/2/1 日のタイミングで Slack 通知
+name: Meta Token Expiry Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_notify:
+        description: 'テスト用: 強制通知する（残り日数に関わらず送信）'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 0 * * *'   # 毎日 09:00 JST
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: トークン残り日数を確認して必要なら Slack 通知
+        env:
+          META_TOKEN_GENERATED_AT: ${{ secrets.META_TOKEN_GENERATED_AT }}
+          META_TOKEN_EXPIRES_DAYS: "60"
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FORCE_NOTIFY: ${{ inputs.force_notify || 'false' }}
+        run: |
+          python3 - <<'EOF'
+          import os, json, sys
+          from datetime import date, datetime
+
+          generated_str = os.environ.get("META_TOKEN_GENERATED_AT", "").strip()
+          if not generated_str:
+              print("META_TOKEN_GENERATED_AT が未設定のためスキップします", flush=True)
+              sys.exit(0)
+
+          try:
+              generated = date.fromisoformat(generated_str)
+          except ValueError:
+              print(f"日付フォーマットエラー: {generated_str}", flush=True)
+              sys.exit(1)
+
+          expires_days = int(os.environ.get("META_TOKEN_EXPIRES_DAYS", "60"))
+          today = date.today()
+          elapsed = (today - generated).days
+          remaining = expires_days - elapsed
+
+          print(f"生成日: {generated}  経過: {elapsed}日  残り: {remaining}日", flush=True)
+
+          # 通知するタイミング（または強制通知フラグ）
+          force = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
+          notify_at = {14, 10, 7, 5, 4, 3, 2, 1}
+          if not force and remaining not in notify_at:
+              print("通知タイミングではありません", flush=True)
+              sys.exit(0)
+          if force:
+              print("強制通知モードで送信します", flush=True)
+
+          webhook_url = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+          if not webhook_url:
+              print("SLACK_WEBHOOK_URL が未設定のためスキップします", flush=True)
+              sys.exit(0)
+
+          # 緊急度に応じた絵文字・色
+          if remaining <= 3:
+              emoji = "🚨"
+              color = "#EF4444"
+              urgency = "緊急"
+          elif remaining <= 7:
+              emoji = "⚠️"
+              color = "#F59E0B"
+              urgency = "警告"
+          else:
+              emoji = "🔔"
+              color = "#3B82F6"
+              urgency = "お知らせ"
+
+          expire_date = generated.replace(year=generated.year + (1 if elapsed + remaining > 365 else 0))
+          from datetime import timedelta
+          expire_date = generated + timedelta(days=expires_days)
+
+          payload = {
+              "attachments": [
+                  {
+                      "color": color,
+                      "blocks": [
+                          {
+                              "type": "header",
+                              "text": {
+                                  "type": "plain_text",
+                                  "text": f"{emoji} [{urgency}] Meta トークンがあと {remaining} 日で失効します",
+                              },
+                          },
+                          {
+                              "type": "section",
+                              "fields": [
+                                  {"type": "mrkdwn", "text": f"*生成日*\n{generated}"},
+                                  {"type": "mrkdwn", "text": f"*失効日*\n{expire_date}"},
+                                  {"type": "mrkdwn", "text": f"*残り日数*\n*{remaining} 日*"},
+                                  {"type": "mrkdwn", "text": f"*対象アプリ*\nabil-weekly-report"},
+                              ],
+                          },
+                          {
+                              "type": "section",
+                              "text": {
+                                  "type": "mrkdwn",
+                                  "text": (
+                                      "*対応手順*\n"
+                                      "1. <https://business.facebook.com/latest/settings/system_users|Meta Business Suite → システムユーザー> を開く\n"
+                                      "2. `abil_weekly-automation` → *トークンを生成*\n"
+                                      "3. アプリ: `abil-weekly-report` / 有効期限: *60日* を選択\n"
+                                      "4. 新しいトークンを GitHub Secrets の `META_ACCESS_TOKEN` に更新\n"
+                                      "5. `META_TOKEN_GENERATED_AT` も今日の日付に更新"
+                                  ),
+                              },
+                          },
+                      ],
+                  }
+              ]
+          }
+
+          import urllib.request
+          req = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+          )
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(f"Slack 通知送信完了: {resp.status}", flush=True)
+          EOF

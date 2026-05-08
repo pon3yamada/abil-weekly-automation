@@ -13,6 +13,49 @@
 - メモ:
 ```
 
+### 2026-05-08 — Meta 広告 API 連携（フェーズ4）完了
+
+- **やったこと**
+  - Meta Business Suite でシステムユーザー `abil_weekly-automation`（Admin）を新規作成
+    - ABiLAHiL（Shopify 連携アプリ）には触れず、`abil-weekly-report` アプリ専用のユーザーとして作成
+    - 広告アカウント「ABiL株式会社」に全権限で割り当て
+    - `abil-weekly-report` アプリに Admin 役割で追加
+    - システムユーザートークンを生成（有効期限: 60日、権限: `ads_read` / `ads_management` / `pages_read_engagement`）
+    - ※ `instagram_basic` / `instagram_manage_insights` はビジネスタイプアプリでは利用不可 → 将来フェーズで対応
+  - `.env` に `META_ACCESS_TOKEN` / `META_AD_ACCOUNT_ID=act_862328257705590` を記入
+  - `src/fetch_meta.py` を新規作成
+    - Marketing API v21.0 で `/insights` を取得（spend / purchases / purchase_value / clicks / CPC / CVR / ROAS）
+    - 当週・前週を取得して先週比を算出
+    - `compare` セクション（Meta vs Google の ROAS/CPC/CVR）も自動更新
+    - グレースフルデグレード: API 失敗時は stderr 出力のみ・既存 JSON を維持
+  - ローカル動作確認済み（2026-04-27〜05-03）
+    - 当週: 広告費 ¥24,345 / クリック 1,184 / CV 6件 / ROAS 1.85×
+    - 前週: 広告費 ¥17,541 / クリック 277 / CV 3件 / ROAS 1.60×
+  - `.github/workflows/pages.yml` に Meta ステップを追加（Shopify の直後、`continue-on-error: true`）
+
+- **次にやること（新チャットで続ける）**
+  - GitHub Secrets に以下を登録:
+    - `META_ACCESS_TOKEN`: システムユーザートークン（60日で失効 → 期限前に再生成が必要）
+    - `META_AD_ACCOUNT_ID`: `act_862328257705590`
+  - トークン失効への対策: 60日ごとに Business Suite でトークン再生成 → Secret を更新
+  - フェーズ5: **Google 広告 API 連携**（`fetch_google_ads.py` 新規作成）
+    - `.env` の `GOOGLE_ADS_*` を記入して実装へ
+  - 将来: Instagram 有機指標（フォロワー数・リーチ）をレポートに追加
+    - 現状のアプリ設定では `instagram_basic` / `instagram_manage_insights` が利用不可
+    - 別途 Facebook Login 設定またはアプリタイプ変更が必要
+
+- **重要ファイル（更新）**
+  - `.env`: `META_ACCESS_TOKEN` / `META_AD_ACCOUNT_ID` を追記
+  - `src/fetch_meta.py`: 新規作成
+  - `.github/workflows/pages.yml`: Meta ステップ追加済み
+
+- **Meta 設定まとめ**
+  - ビジネスアカウント: `abil_japan`（ID: 400469534495789）
+  - アプリ: `abil-weekly-report`（ID: 949541937938891）
+  - システムユーザー: `abil_weekly-automation`（ID: 61589193430310）
+  - 広告アカウント: ABiL株式会社（ID: `act_862328257705590`）
+  - トークン有効期限: 60日（2026-07-07 頃に再生成が必要）
+
 ### 2026-05-06 — Shopify セッション数・CV率 対応 + Analytics API 調査
 
 - **やったこと**
