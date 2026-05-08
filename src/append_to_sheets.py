@@ -104,7 +104,7 @@ def _metric_value(metrics: list[dict], label: str) -> str:
 
 def build_row(report: dict) -> list:
     """report JSON から Sheets 書き込み用の行リストを生成する。"""
-    period = report.get("period_range", "")
+    period = report.get("period_range", "").replace("〜 ", "\n〜 ")
 
     # ── サマリー
     summary = report.get("summary", {})
@@ -337,7 +337,7 @@ def main() -> int:
     col_data = [[v] for v in row]  # row の各要素を 1 行ずつに変換
     start_cell = gspread.utils.rowcol_to_a1(1, write_col)
     end_cell = gspread.utils.rowcol_to_a1(row_count, write_col)
-    ws.update(col_data, f"{start_cell}:{end_cell}", value_input_option="USER_ENTERED")
+    ws.update(col_data, f"{start_cell}:{end_cell}", value_input_option="RAW")
 
     print(f"完了: スプレッドシート ID={args.spreadsheet_id}, シート='{args.sheet_name}'")
     return 0
