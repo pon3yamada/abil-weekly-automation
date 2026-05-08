@@ -176,6 +176,14 @@ jobs:
           git diff --cached --quiet || git commit -m "report: ${{ env.WEEK_SLUG }}"
           git push
 
+      # ── 課題提出・図解リファレンス（reference/ をそのまま同梱）──────────────
+      - name: 図解リファレンスを _site に同梱
+        run: |
+          mkdir -p _site/reference
+          cp reference/assignment-overview.html _site/reference/
+          cp reference/report-automation-flow.html _site/reference/
+          cp -R reference/images _site/reference/
+
       # ── GitHub Pages デプロイ ──────────────────────────────────────────
       - uses: actions/upload-pages-artifact@v3
         with:

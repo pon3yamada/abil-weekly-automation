@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta property="og:title" content="週次レポート自動化ツール — ツール作成課題 提出資料">
+  <meta property="og:description" content="実スクリーンショット、4つのパーツの設計意図、デザイン上の工夫、課題と解決を整理した提出用ページです。">
+  <meta property="og:type" content="article">
+  <title>週次レポート自動化ツール — ツール作成課題 提出資料</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23FFFFFF'/><rect x='8' y='8' width='84' height='84' rx='14' fill='none' stroke='%233B82F6' stroke-width='4'/><circle cx='32' cy='40' r='10' fill='%233B82F6' opacity='0.8'/><circle cx='68' cy='40' r='10' fill='%2360A5FA' opacity='0.8'/><rect x='25' y='62' width='50' height='6' rx='3' fill='%2394A3B8' opacity='0.6'/><rect x='30' y='74' width='40' height='6' rx='3' fill='%2394A3B8' opacity='0.3'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ads: {
+              bg: '#FFFFFF',
+              surface: '#F8FAFC',
+              hover: '#F1F5F9',
+              border: '#E2E8F0',
+              accent: '#3B82F6',
+              'accent-light': '#2563EB',
+              text: '#1E293B',
+              muted: '#64748B',
+              dim: '#94A3B8',
+              positive: '#10B981',
+              negative: '#EF4444',
+              warning: '#F59E0B',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"', '"Yu Gothic UI"', '"Meiryo"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { border-top: none !important; }
+      .rounded-xl { break-inside: avoid; }
+      .md\:flex-row { flex-direction: row !important; }
+      .md\:hidden { display: none !important; }
+      .hidden.md\:block { display: block !important; }
+      .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      .md\:mb-20 { margin-bottom: 5rem !important; }
+      .md\:py-16 { padding-top: 4rem !important; padding-bottom: 4rem !important; }
+      .bg-clip-text.text-transparent {
+        -webkit-background-clip: initial !important;
+        background-clip: initial !important;
+        color: #2563EB !important;
+        -webkit-text-fill-color: #2563EB !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-ads-bg text-slate-600 antialiased leading-relaxed border-t-4 border-ads-accent">
+  <div class="no-print max-w-3xl mx-auto px-5 pt-2 flex justify-end">
+    <button onclick="window.print()" class="flex items-center gap-1.5 text-xs text-ads-dim hover:text-ads-accent transition-colors cursor-pointer">
+      <i data-lucide="download" class="w-3.5 h-3.5"></i>
+      PDF
+    </button>
+  </div>
+  <main class="max-w-3xl mx-auto px-5 py-10 md:py-16">
+<!-- CONTENT_START -->
+
+<div class="text-center mb-8 md:mb-12">
+  <div class="inline-flex items-center gap-2 bg-ads-accent/10 text-ads-accent-light px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+    <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+    課題提出・開発ツール
+  </div>
+  <h1 class="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-5">
+    週次レポート自動化ツール
+  </h1>
+  <p class="text-lg text-ads-muted max-w-xl mx-auto leading-relaxed">
+    ひとことで言うと ── <span class="font-bold text-slate-900">EC と広告の数字を自動で集め、レポートページを更新し、Slack に届ける「週一回の運用」をプログラムに任せる仕組み</span>です。
+  </p>
+  <p class="text-sm text-ads-muted max-w-xl mx-auto mt-4">
+    このページは、その設計と画面、つまずきと解決の整理です。処理全体の<strong class="text-slate-800">回路図</strong>は別紙の図解を参照してください。
+  </p>
+</div>
+
+<div class="bg-white border border-ads-border rounded-2xl p-5 md:p-6 mb-8">
+  <p class="text-sm font-black text-slate-900 mb-3 flex items-center gap-2">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+    提出要件への対応チェック
+  </p>
+  <div class="grid sm:grid-cols-2 gap-3 text-xs">
+    <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-800">
+      <span class="font-bold">対応済み：</span>4つのパーツの決め方（起動・収集・加工・配信）
+    </div>
+    <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-800">
+      <span class="font-bold">対応済み：</span>デザインの工夫（レイアウトと可読性）
+    </div>
+    <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-800">
+      <span class="font-bold">対応済み：</span>ぶつかった課題と解決方法（4ケース）
+    </div>
+    <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-800">
+      <span class="font-bold">対応済み：</span>実スクリーンショットを3枚掲載
+    </div>
+  </div>
+</div>
+
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-4">
+    <div class="w-8 h-8 rounded-lg bg-ads-accent flex items-center justify-center flex-shrink-0">
+      <span class="text-white text-sm font-black">1</span>
+    </div>
+    <h2 class="text-xl font-black text-slate-900">実画面（スクリーンショット）</h2>
+  </div>
+  <p class="text-sm text-ads-muted mb-6 leading-relaxed">
+    実際に取得したスクリーンショットを掲載しています。一覧画面と詳細画面の見え方から、運用時の導線と情報のまとまりを確認できます。
+  </p>
+
+  <div class="grid md:grid-cols-2 gap-4 mb-6">
+    <figure class="rounded-xl border border-ads-border bg-white p-3 shadow-sm">
+      <img src="./images/screenshot-list-1.png" alt="週次レポート一覧のスクリーンショット 1" class="w-full rounded-lg border border-slate-200">
+      <figcaption class="text-[11px] text-ads-muted mt-2">スクリーンショット 1: レポート一覧（提出素材）</figcaption>
+    </figure>
+    <figure class="rounded-xl border border-ads-border bg-white p-3 shadow-sm">
+      <img src="./images/screenshot-list-2.png" alt="週次レポート一覧のスクリーンショット 2" class="w-full rounded-lg border border-slate-200">
+      <figcaption class="text-[11px] text-ads-muted mt-2">スクリーンショット 2: レポート一覧（提出素材）</figcaption>
+    </figure>
+  </div>
+
+  <figure class="rounded-xl border border-ads-border bg-white p-3 shadow-sm">
+    <img src="./images/screenshot-report-detail.png" alt="ABiL 週次レポート詳細のスクリーンショット" class="w-full rounded-lg border border-slate-200">
+    <figcaption class="text-[11px] text-ads-muted mt-2">スクリーンショット 3: ABiL 週次レポート詳細（提出素材）</figcaption>
+  </figure>
+
+  <div class="mt-8 rounded-2xl border border-ads-border bg-ads-surface p-5">
+    <p class="text-sm font-black text-slate-900 mb-2 flex items-center gap-2">
+      <i data-lucide="key-round" class="w-4 h-4 text-violet-600"></i>
+      API 設定で詰まった場面（追加スクリーンショット）
+    </p>
+    <p class="text-[13px] text-ads-muted leading-relaxed mb-4">
+      Shopify・Meta広告・Google広告の各APIで認証や設定項目が異なり、最初はどこで詰まっているかの切り分けに時間がかかりました。
+      分からない画面はその都度スクリーンショットを取り、AIに状況を共有して解決手順を確認しながら進めています。
+    </p>
+    <figure class="rounded-xl border border-ads-border bg-white p-3 shadow-sm">
+      <img src="./images/screenshot-api-settings-latest.png" alt="API設定確認のスクリーンショット" class="w-full rounded-lg border border-slate-200">
+      <figcaption class="text-[11px] text-ads-muted mt-2">スクリーンショット 4: API 設定確認（提出素材）</figcaption>
+    </figure>
+  </div>
+
+  <div class="mt-8 rounded-2xl border border-ads-border bg-ads-surface p-5">
+    <p class="text-sm font-black text-slate-900 mb-2 flex items-center gap-2">
+      <i data-lucide="badge-check" class="w-4 h-4 text-emerald-600"></i>
+      GitHub Actions 実行と Slack 到達の確認
+    </p>
+    <p class="text-[13px] text-ads-muted leading-relaxed mb-4">
+      実際に GitHub Actions を手動実行し、ワークフロー完了後に Slack へレポート通知が届くことまで確認しました。
+      これにより、「取得 → 生成 → 配信」の一連フローが実運用でも動く状態であることを検証できています。
+    </p>
+    <figure class="rounded-xl border border-ads-border bg-white p-3 shadow-sm">
+      <img src="./images/screenshot-gha-slack-confirm.png" alt="GitHub Actions実行とSlack通知確認のスクリーンショット" class="w-full rounded-lg border border-slate-200">
+      <figcaption class="text-[11px] text-ads-muted mt-2">スクリーンショット 5: GitHub Actions 実行・Slack 到達の確認（提出素材）</figcaption>
+    </figure>
+  </div>
+</div>
+
+<div class="bg-ads-surface border border-ads-border rounded-2xl p-6 md:p-10 mb-10">
+  <div class="text-center mb-8">
+    <p class="text-xs font-bold text-ads-accent-light uppercase tracking-widest mb-2">2. 全体像（4パーツ）</p>
+    <p class="text-xl md:text-2xl font-black text-slate-900 mb-2">
+      自動化は「起動 → 収集 → 加工 → 配信」の一本化
+    </p>
+    <p class="text-sm text-ads-muted">複数データ源でも、頭の中の地図はこの4つの役割に収めると説明しやすい</p>
+  </div>
+
+  <div class="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-0 mb-10">
+    <div class="flex flex-col items-center w-full md:w-36">
+      <div class="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="clock" class="w-7 h-7 text-amber-600"></i>
+      </div>
+      <div class="font-black text-slate-900 text-sm text-center">トリガー</div>
+      <div class="text-[11px] text-amber-600 mt-0.5 text-center">定期スケジュール</div>
+    </div>
+    <div class="flex items-center justify-center w-8 rotate-90 md:rotate-0"><i data-lucide="chevron-right" class="w-6 h-6 text-ads-dim"></i></div>
+    <div class="flex flex-col items-center w-full md:w-36">
+      <div class="w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="database" class="w-7 h-7 text-blue-600"></i>
+      </div>
+      <div class="font-black text-slate-900 text-sm text-center">ソース元</div>
+      <div class="text-[11px] text-blue-600 mt-0.5 text-center">API で取得</div>
+    </div>
+    <div class="flex items-center justify-center w-8 rotate-90 md:rotate-0"><i data-lucide="chevron-right" class="w-6 h-6 text-ads-dim"></i></div>
+    <div class="flex flex-col items-center w-full md:w-36">
+      <div class="w-14 h-14 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="cpu" class="w-7 h-7 text-violet-600"></i>
+      </div>
+      <div class="font-black text-slate-900 text-sm text-center">処理する場所</div>
+      <div class="text-[11px] text-violet-600 mt-0.5 text-center">集約・整形・公開</div>
+    </div>
+    <div class="flex items-center justify-center w-8 rotate-90 md:rotate-0"><i data-lucide="chevron-right" class="w-6 h-6 text-ads-dim"></i></div>
+    <div class="flex flex-col items-center w-full md:w-36">
+      <div class="w-14 h-14 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-2.5">
+        <i data-lucide="send" class="w-7 h-7 text-emerald-600"></i>
+      </div>
+      <div class="font-black text-slate-900 text-sm text-center">届ける先</div>
+      <div class="text-[11px] text-emerald-600 mt-0.5 text-center">Slack で通知</div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap justify-center gap-2">
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-ads-border px-3 py-1 text-xs font-medium text-slate-700">
+      <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-slate-500"></i> Shopify
+    </span>
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-ads-border px-3 py-1 text-xs font-medium text-slate-700">
+      <i data-lucide="share-2" class="w-3.5 h-3.5 text-slate-500"></i> Meta 広告
+    </span>
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-ads-border px-3 py-1 text-xs font-medium text-slate-700">
+      <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500"></i> Google 広告
+    </span>
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-ads-border px-3 py-1 text-xs font-medium text-slate-700">
+      <i data-lucide="table-2" class="w-3.5 h-3.5 text-slate-500"></i> Google スプレッドシート
+    </span>
+    <span class="inline-flex items-center gap-1.5 rounded-full bg-white border border-ads-border px-3 py-1 text-xs font-medium text-slate-700">
+      <i data-lucide="sparkles" class="w-3.5 h-3.5 text-slate-500"></i> LLM で改善提案
+    </span>
+  </div>
+</div>
+
+<a href="https://diagram-report-automation-flow.surge.sh/" target="_blank" rel="noopener noreferrer" class="no-underline block bg-slate-900 text-white rounded-2xl p-6 md:p-8 mb-12 hover:bg-slate-800 transition-colors shadow-lg">
+  <div class="flex flex-col md:flex-row md:items-center gap-4">
+    <div class="flex-shrink-0 w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+      <i data-lucide="workflow" class="w-8 h-8 text-white"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-xs font-bold text-amber-300 uppercase tracking-widest mb-1">詳しい回路図</p>
+      <p class="text-lg md:text-xl font-black">「週次レポート自動化ツールの仕組み」（4パーツ別紙）</p>
+      <p class="text-sm text-slate-300 mt-2">GitHub Actions・取得元・加工・Slack までを色分けで分解した、外部公開の詳細図解ページへジャンプします。</p>
+    </div>
+    <div class="flex-shrink-0 flex items-center gap-2 text-sm font-bold text-white/90">
+      <span class="hidden md:inline">開く</span>
+      <i data-lucide="external-link" class="w-5 h-5"></i>
+    </div>
+  </div>
+</a>
+
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-4">
+    <div class="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center flex-shrink-0"><span class="text-white text-sm font-black">3</span></div>
+    <h2 class="text-xl font-black text-slate-900">4つのパーツの決め方</h2>
+  </div>
+  <div class="space-y-4 text-sm text-ads-muted leading-relaxed">
+    <p>説明するときに「スクリプトが頑張る」だけだと聞き手の頭に負荷がかかるので、<strong class="text-slate-800">運用の時間軸</strong>に沿って役割を4つに分割しました。GitHub の YAML や Python のファイル名より先に、この地図を共有するのが意図です。</p>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-xl border border-ads-border bg-white p-5">
+        <p class="font-black text-slate-900 mb-2 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i> うまくいった点</p>
+        <ul class="list-disc pl-5 space-y-2 text-[13px]">
+          <li>「サーバーを持たない定期実行」（GitHub Actions）を<strong class="text-slate-700">トリガー</strong>に置くと、インフラを語らなくて済む。</li>
+          <li><strong class="text-slate-700">ソース元・処理・配信</strong>の境界がレビューやログ調査にも直結する。</li>
+        </ul>
+      </div>
+      <div class="rounded-xl border border-ads-border bg-ads-surface p-5">
+        <p class="font-black text-slate-900 mb-2 flex items-center gap-2"><i data-lucide="puzzle" class="w-4 h-4 text-ads-accent-light"></i> メモとの対応 </p>
+        <p class="text-[13px]">ワークフロー上は Shopify → Meta → Google → Sheets → LLM の順など<strong class="text-slate-700">細かい順序</strong>がありますが、それらはすべて「ソース元」のあと、「処理」の中で直列に並んでいる、と見なせます。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-4">
+    <div class="w-8 h-8 rounded-lg bg-pink-500 flex items-center justify-center flex-shrink-0"><span class="text-white text-sm font-black">4</span></div>
+    <h2 class="text-xl font-black text-slate-900">デザイン・実装での工夫</h2>
+  </div>
+  <div class="grid sm:grid-cols-2 gap-4">
+    <div class="rounded-xl bg-white border border-ads-border p-5 shadow-sm">
+      <div class="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center mb-3"><i data-lucide="layout-dashboard" class="w-5 h-5 text-orange-600"></i></div>
+      <p class="font-black text-slate-900 mb-2">画面（レポート HTML）</p>
+      <p class="text-[13px] text-ads-muted leading-relaxed">ヘッダーはブランドカラーのグラデーションで視線をまとめる。主要指標はタイル、チャネル深掘りはタブへ分離して<strong class="text-slate-700">読む順番を設計</strong>しました。</p>
+    </div>
+    <div class="rounded-xl bg-white border border-ads-border p-5 shadow-sm">
+      <div class="w-10 h-10 rounded-lg bg-blue-500/15 flex items-center justify-center mb-3"><i data-lucide="file-code" class="w-5 h-5 text-blue-600"></i></div>
+      <p class="font-black text-slate-900 mb-2">データとテンプレの分離</p>
+      <p class="text-[13px] text-ads-muted leading-relaxed">取得結果を JSON に収束させ、表示は Jinja2 側に限定。<strong class="text-slate-700">コンポーネントの責務</strong>を揃えると変更に強くなります。</p>
+    </div>
+    <div class="rounded-xl bg-white border border-ads-border p-5 shadow-sm">
+      <div class="w-10 h-10 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-3"><i data-lucide="cloud-cog" class="w-5 h-5 text-emerald-600"></i></div>
+      <p class="font-black text-slate-900 mb-2">CI とグレースフルデグレード</p>
+      <p class="text-[13px] text-ads-muted leading-relaxed">一部 API が落ちてもレポート生成を続ける方針（<strong class="text-slate-700">continue-on-error</strong> と stderr）で、運用での「全区赤」状態を避けます。</p>
+    </div>
+    <div class="rounded-xl bg-white border border-ads-border p-5 shadow-sm">
+      <div class="w-10 h-10 rounded-lg bg-violet-500/15 flex items-center justify-center mb-3"><i data-lucide="table" class="w-5 h-5 text-violet-600"></i></div>
+      <p class="font-black text-slate-900 mb-2">週次データの横向き蓄積</p>
+      <p class="text-[13px] text-ads-muted leading-relaxed">スプレッドシートは指標ラベルを A 列に固定し週ごとに列が増える形。<strong class="text-slate-700">グラフ用の縦持ちへの変換</strong>ではなく、現場の閲覧に合わせたレイアウトです。</p>
+    </div>
+  </div>
+</div>
+
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-4">
+    <div class="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0"><span class="text-white text-sm font-black">5</span></div>
+    <h2 class="text-xl font-black text-slate-900">ぶつかった課題と解決の型</h2>
+  </div>
+  <p class="text-sm text-ads-muted mb-6">開発メモから、再現しやすい論点だけ抜き出しています。</p>
+
+  <div class="space-y-4">
+
+    <div class="rounded-xl bg-ads-surface border border-ads-border p-5">
+      <p class="font-black text-slate-900 mb-2 flex items-center gap-2"><i data-lucide="messages-square" class="w-4 h-4 text-ads-accent-light"></i> 設定調査の進め方（実務上の工夫）</p>
+      <p class="text-[13px] text-ads-muted leading-relaxed">
+        Shopify・Meta広告・Google広告は、必要な認証方式や管理画面の導線がそれぞれ異なります。
+        そのため、不明点が出た時点で画面をスクリーンショット化し、AIに「今どの画面で何に詰まっているか」を渡して、次の確認ポイントを一つずつ潰す形で進めました。
+      </p>
+    </div>
+
+    <div class="rounded-2xl border border-ads-border overflow-hidden">
+      <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-ads-border">
+        <div class="bg-red-50/90 p-5">
+          <p class="text-xs font-black text-red-700 uppercase mb-2">現象・制約</p>
+          <p class="font-bold text-slate-900 mb-2">公式クライアント経由の通信が環境依存で不安定</p>
+          <p class="text-[13px] text-ads-muted">Python ランタイムと gRPC の組み合わせで検索ストリームが解決できないケースがある。</p>
+        </div>
+        <div class="bg-emerald-50/80 p-5">
+          <p class="text-xs font-black text-emerald-700 uppercase mb-2">打ち手</p>
+          <p class="font-bold text-slate-900 mb-2">Google 広告は REST で GAQL を投げる</p>
+          <p class="text-[13px] text-ads-muted">HTTP だけに寄せてデバッグの見通しと移植性を稼ぐ。<span class="text-xs text-slate-500"> （メモ・実装方針に基づく）</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-ads-border overflow-hidden">
+      <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-ads-border">
+        <div class="bg-red-50/90 p-5">
+          <p class="text-xs font-black text-red-700 uppercase mb-2">現象・制約</p>
+          <p class="font-bold text-slate-900 mb-2">REST の API バージョンが無言で変わり 404 が出る</p>
+          <p class="text-[13px] text-ads-muted">古いパスへ向けたコードは突然止まり、ログから原因が読みにくい。</p>
+        </div>
+        <div class="bg-emerald-50/80 p-5">
+          <p class="text-xs font-black text-emerald-700 uppercase mb-2">打ち手</p>
+          <p class="font-bold text-slate-900 mb-2">運用時点で有効なバージョンに固定してドキュメント化</p>
+          <p class="text-[13px] text-ads-muted">廃止予定一覧をセットでチェック。<span class="text-xs text-slate-500"> （開発メモ）</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-ads-border overflow-hidden">
+      <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-ads-border">
+        <div class="bg-red-50/90 p-5">
+          <p class="text-xs font-black text-red-700 uppercase mb-2">現象・制約</p>
+          <p class="font-bold text-slate-900 mb-2">プラットフォームが「高度な分析 API」を公開していない</p>
+          <p class="text-[13px] text-ads-muted">権限より先に<strong class="text-slate-700">プラン側の機能差</strong>で取れない指標がある。</p>
+        </div>
+        <div class="bg-emerald-50/80 p-5">
+          <p class="text-xs font-black text-emerald-700 uppercase mb-2">打ち手</p>
+          <p class="font-bold text-slate-900 mb-2">取得失敗時は静かに握りつぶさずログし、別ソースをロードマップへ</p>
+          <p class="text-[13px] text-ads-muted">「欲しい KPI」と「無償公開 API」のギャップを早期に明示する。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-ads-border overflow-hidden">
+      <div class="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-ads-border">
+        <div class="bg-red-50/90 p-5">
+          <p class="text-xs font-black text-red-700 uppercase mb-2">現象・制約</p>
+          <p class="font-bold text-slate-900 mb-2">LLM と CI の組み合わせで設定が増える</p>
+          <p class="text-[13px] text-ads-muted">複数プロバイダの鍵があると優先順位が不透明になり、アクションだけがサンプルのまま残ることがある。</p>
+        </div>
+        <div class="bg-emerald-50/80 p-5">
+          <p class="text-xs font-black text-emerald-700 uppercase mb-2">打ち手</p>
+          <p class="font-bold text-slate-900 mb-2"><code class="text-xs bg-white/80 px-1 rounded">GENERATE_ACTIONS_PROVIDER</code> など環境変数で優先順を一文で固定</p>
+          <p class="text-[13px] text-ads-muted">soft-fail 時はワークフローを赤にしないがログで判別。<span class="text-xs text-slate-500"> （運用メモ）</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-xl bg-ads-surface border border-ads-border p-5">
+      <p class="flex items-center gap-2 font-black text-slate-900 mb-2"><i data-lucide="clipboard-list" class="w-5 h-5 text-slate-500"></i> メタ・運用での学び（短く）</p>
+      <ul class="text-[13px] text-ads-muted space-y-2 list-disc pl-5">
+        <li><strong class="text-slate-700">OAuth</strong>：同意画面がテスト公開のままだと refresh の寿命が短い。運用ロックを避ける公開設定が必要になる。</li>
+        <li><strong class="text-slate-700">Meta アクセストークン</strong>：種類によって期限が頭に載りやすく、Secrets のローテ手順もセットで決める。</li>
+        <li><strong class="text-slate-700">サービス連携鍵の露出</strong>：スクショ・リポジトリ・チャットへの混入をルール化する。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="mb-12 rounded-2xl bg-slate-900 text-white p-6 md:p-8">
+  <div class="flex items-start gap-3 mb-4">
+    <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0"><i data-lucide="book-open-check" class="w-6 h-6 text-amber-200"></i></div>
+    <div>
+      <p class="text-xs font-black text-amber-200 uppercase tracking-widest mb-1">提出時のセット</p>
+      <p class="text-lg md:text-xl font-black">読み順の提案</p>
+    </div>
+  </div>
+  <ol class="list-decimal pl-6 space-y-2 text-sm text-slate-200 leading-relaxed">
+    <li>本ページで<strong class="text-white">ツールの価値と画面の読みどころ</strong>を掴む</li>
+    <li><strong class="text-white">詳細回路図</strong>ページで GitHub Actions 起点の流れを追う（外部公開URL: <span class="text-amber-200">diagram-report-automation-flow.surge.sh</span>）</li>
+    <li>最後に<strong class="text-white">課題と解決の型</strong>を確認し、再現性のある改善ポイントを持ち帰る</li>
+  </ol>
+  <p class="mt-6 text-[11px] text-slate-400 leading-relaxed">
+    GitHub Pages へのデプロイ後は、ワークフロー成果物の環境によりパスが変わります。通常は <strong class="text-slate-200">サイトの公開URL</strong><code class="mx-1 text-slate-300">reference/assignment-overview.html</code>（相対または絶対）で閲覧できます。
+  </p>
+</div>
+
+<!-- CONTENT_END -->
+  </main>
+  <footer class="max-w-3xl mx-auto px-5 pb-10 pt-6 border-t border-ads-border/30">
+    <p class="text-xs text-ads-dim text-center">AI-WorkBrenchの図解ツールで作成</p>
+  </footer>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
