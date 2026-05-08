@@ -23,5 +23,12 @@ jobs:
         run: |
           python3 -m pip install -q -r src/requirements.txt
           python3 -m py_compile src/fetch_shopify.py
-          python3 src/generate_report.py -i src/data/sample_report.json -o build/report.html
+          python3 -m py_compile src/generate_actions.py
+          python3 -m py_compile src/post_slack.py
+          python3 src/generate_actions.py \
+            --base src/data/sample_report.json \
+            --out build/report_actions.json
+          python3 src/generate_report.py -i build/report_actions.json -o build/report.html
+          python3 src/post_slack.py --report-url https://example.invalid/test/ \
+            --period "CIスモーク" --overall-score "—" --summary-line "Webhook なしではスキップ"
           test -s build/report.html

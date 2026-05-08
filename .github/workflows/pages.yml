@@ -78,6 +78,21 @@ jobs:
             --base build/report_merged.json
         continue-on-error: true   # Sheets 書き込み失敗時もレポート生成を継続
 
+      # ── LLM: 改善アクション3件（JSON の report.actions を更新）──────────
+      - name: LLM で改善アクションを生成 → build/report_merged.json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          GENERATE_ACTIONS_PROVIDER: ${{ secrets.GENERATE_ACTIONS_PROVIDER }}
+        run: |
+          python3 src/generate_actions.py \
+            --base build/report_merged.json \
+            --out  build/report_merged.json \
+            --soft-fail
+        continue-on-error: true   # 予期しない例外（ファイルI/Oなど）のみ
+
       # ── 週スラッグを決定 ───────────────────────────────────────────────
       - name: 週スラッグを決定（WEEK_SLUG 環境変数）
         run: |
@@ -168,3 +183,15 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Slack に週次レポート URL を投稿
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          BASE="${{ steps.deployment.outputs.page_url }}"
+          SLUG="${{ env.WEEK_SLUG }}"
+          REPORT_URL="${BASE%/}/${SLUG}/"
+          python3 src/post_slack.py \
+            --base build/report_merged.json \
+            --report-url "$REPORT_URL"
+        continue-on-error: true

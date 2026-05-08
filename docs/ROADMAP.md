@@ -21,9 +21,9 @@
 | **4** | **Meta 広告 API** を追加 | ✅ 完了 | JSON に Meta 指標が入る |
 | **5** | **Google 広告 API** を追加（審査完了後） | ✅ 完了 | JSON に Google 指標が入る |
 | **6** | **Google Sheets** へ生データ追記（蓄積） | ✅ 完了 | A 列に指標・横軸に週の列が増える |
-| **7** | **異常値検知**（閾値・先週比）とレポート内アラート | 🔲 未着手 | アラート文言がデータ駆動 |
-| **8** | **Claude API** で改善アクション3件を生成し JSON/HTML に反映 | 🔲 未着手 | 文言が毎週変わる |
-| **9** | **Slack Incoming Webhook** で URL とサマリー投稿 | 🔲 未着手 | 運用フローと同じ |
+| **7** | **異常値検知**（閾値・先週比）とレポート内アラート | 🔲 後回し | アラート文言がデータ駆動（フェーズ8・9を優先） |
+| **8** | **LLM（Claude または OpenAI）** で改善アクション3件を生成し JSON/HTML に反映 | ✅ 完了 | `src/generate_actions.py`。Anthropic と OpenAI のキー両方がある場合は既定で Anthropic。`GENERATE_ACTIONS_PROVIDER=openai` で OpenAI に固定（Secrets でも可）。API失敗時は `--soft-fail` 等で既存 `actions` を維持可 |
+| **9** | **Slack Incoming Webhook** で URL とサマリー投稿 | ✅ 完了 | `src/post_slack.py`・`SLACK_WEBHOOK_URL`。Pages デプロイ直後に通知。未設定時はスキップ |
 | **10** | **Shopify スコープ追加**（`read_reports` / `read_customer_events`）でセッション数・CV率を本物データに差し替え | 🔲 フェーズ9完了後 | セッション数・CV率が N/A → 実数値に変わる |
 
 ---
