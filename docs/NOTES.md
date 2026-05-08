@@ -13,7 +13,46 @@
 - メモ:
 ```
 
-### 2026-05-08 — Google 広告 API 連携（フェーズ5）実装・ローカル確認完了
+### 2026-05-08 — キャンペーン別内訳・CPA・全体サマリー実数化（フェーズ5 完了）
+
+- **やったこと**
+  - **CVR 計算を修正**（Google Ads）
+    - 旧: `conversions / clicks * 100`
+    - 新: `conversions / (clicks + engagements) * 100`（Google 管理画面と一致）
+    - GAQL に `metrics.engagements` を追加
+  - **CPA（コンバージョン単価）を両チャネルに追加**
+    - Google Ads: `cost / conversions`
+    - Meta Ads: `spend / purchases`
+    - 両チャネルのメトリクスグリッドに「コンバージョン単価（CPA）」として表示
+  - **キャンペーン別内訳テーブルを追加**
+    - `src/fetch_google_ads.py`: GAQL に `campaign.name` を追加。費用のあるキャンペーンを `campaigns[]` として JSON 出力（広告費降順）
+    - `src/fetch_meta.py`: `/insights?level=campaign` でキャンペーン別インサイトを取得し `campaigns[]` として出力
+    - `weekly_report.html.j2`: Meta / Google 各タブのメトリクスグリッド下部にキャンペーン別テーブルを表示（`campaigns[]` がある場合のみ）
+    - 表示カラム: キャンペーン名 / 広告費 / CV / CPA / ROAS（Google はさらに CVR）
+  - **全体サマリーを実データで更新**
+    - `fetch_meta.py`: `_raw.cost` / `_raw.prev_cost` を JSON に保存
+    - `fetch_google_ads.py`: `update_summary()` 関数を追加
+      - Google + Meta の広告費を合算して `summary.ad_spend` を更新
+      - MER（広告費 ÷ 売上）を実計算して `summary.mer` を更新
+      - ステータス自動判定: ≦30% → 良好 / ≦40% → 注意 / >40% → 要改善
+    - ローカル確認（2026-04-27〜05-03）:
+      - 広告費合計: ¥132,502（Google ¥108,157 + Meta ¥24,345）
+      - 売上: ¥342,440 → MER: 38.7%（注意）
+  - `docs/ROADMAP.md` フェーズ5を「✅ 完了」に更新
+
+- **重要ファイル（更新）**
+  - `src/fetch_google_ads.py`: CVR 修正 / CPA 追加 / campaigns[] 追加 / update_summary() 追加
+  - `src/fetch_meta.py`: CPA 追加 / campaigns[] 追加（/insights?level=campaign）/ _raw 追加
+  - `src/templates/weekly_report.html.j2`: キャンペーン別テーブル追加（Meta・Google 両タブ）
+
+- **次にやること**
+  - フェーズ6: **Google Sheets** への週次データ蓄積（過去推移の保存）
+  - フェーズ7: **異常値検知**（アラート文言を実データ駆動に）
+  - フェーズ8: **Claude API** で改善アクション3件を自動生成
+
+---
+
+### 2026-05-08 — Google 広告 API 連携（フェーズ5）実装・CI 連携完了
 
 - **やったこと**
   - `src/fetch_google_ads.py` を新規作成・ローカル動作確認済み
@@ -43,22 +82,6 @@
   - 現在「テスト」ステータス → **refresh_token が7日で失効する**
   - 対策: Google Cloud Console → 「OAuth 同意画面」→ **「アプリを公開」** で本番環境へ
   - 社内ツールのため審査不要で即時公開可能。公開後は refresh_token が無期限になる
-
-- **次にやること（新チャットで続ける）**
-  - Google Cloud Console で **OAuth 同意画面を「本番環境」に公開**（refresh_token 無期限化）
-  - **GitHub Secrets** に以下を登録（CI で動かすために必要）:
-    - `GOOGLE_ADS_DEVELOPER_TOKEN` / `GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET`
-    - `GOOGLE_ADS_REFRESH_TOKEN` / `GOOGLE_ADS_CUSTOMER_ID` / `GOOGLE_ADS_LOGIN_CUSTOMER_ID`
-    - `META_ACCESS_TOKEN` / `META_AD_ACCOUNT_ID` / `META_TOKEN_GENERATED_AT`
-    - `SLACK_WEBHOOK_URL`（`token_expiry_check.yml` 用）
-  - Actions を**手動実行**して Shopify + Meta + Google がすべて緑になることを確認
-  - フェーズ6: **Google Sheets** への蓄積
-
-- **重要ファイル（更新）**
-  - `src/fetch_google_ads.py`: 新規作成（REST API v20 使用）
-  - `src/requirements.txt`: `google-ads>=25.0,<26` 追加（ただし現在は未使用）
-  - `.github/workflows/pages.yml`: Google Ads ステップ追加済み
-  - `.env`: `GOOGLE_ADS_*` 記入済み
 
 - **Google Ads 設定まとめ**
   - OAuth クライアント: `ABiL週次レポート - OAuth Web`（Google Cloud）

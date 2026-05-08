@@ -2,18 +2,39 @@
 
 週次レポート自動化の **Python コード**を置く場所です。
 
-## 現状
+## 現状（フェーズ5完了）
 
-- `data/sample_report.json` — レポート1本分のベース JSON（ルートキー `report`）
-- `templates/weekly_report.html.j2` — `reference/abil-weekly-report.html` 相当の Jinja2 テンプレート
-- `generate_report.py` — JSON を読み HTML を書き出す
-- `fetch_shopify.py` — **フェーズ2**: Admin API で注文を集計し、`report.shopify` と `report.period_range` を更新（`.env` の `SHOPIFY_*`）
-- `requirements.txt` — `Jinja2` / `requests` / `python-dotenv`
+| ファイル | 役割 |
+|---|---|
+| `data/sample_report.json` | レポート1本分のベース JSON（ルートキー `report`） |
+| `templates/weekly_report.html.j2` | Jinja2 テンプレート（Tailwind CSS + Chart.js） |
+| `generate_report.py` | JSON を読み HTML を書き出す |
+| `fetch_shopify.py` | Shopify Admin API で注文集計 → `report.shopify` / `report.summary.sales` を更新 |
+| `fetch_meta.py` | Meta Marketing API でインサイト取得 → `report.meta_ads`（指標 + キャンペーン別）を更新 |
+| `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
+| `requirements.txt` | `Jinja2` / `requests` / `python-dotenv` |
 
-### HTML のみ生成
+### フルパイプライン（ローカル確認用）
 
 ```bash
 python3 -m pip install -r src/requirements.txt
+
+# 1. Shopify データ取得
+python3 src/fetch_shopify.py --merge-into build/report_with_shopify.json -o build/report_with_shopify.json
+
+# 2. Meta 広告データ取得（.env に META_ACCESS_TOKEN / META_AD_ACCOUNT_ID が必要）
+python3 src/fetch_meta.py --base build/report_with_shopify.json --out build/report_merged.json
+
+# 3. Google 広告データ取得（.env に GOOGLE_ADS_* が必要）
+python3 src/fetch_google_ads.py --base build/report_merged.json --out build/report_merged.json
+
+# 4. HTML 生成
+python3 src/generate_report.py -i build/report_merged.json -o build/report.html
+```
+
+### HTML のみ生成（テスト用）
+
+```bash
 python3 src/generate_report.py -i src/data/sample_report.json -o build/report.html
 ```
 
