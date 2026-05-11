@@ -98,8 +98,8 @@
         </div>
         <div class="text-right">
           <div class="text-white/70 text-xs mb-1">総合スコア</div>
-          <div class="text-5xl font-black">B+</div>
-          <div class="text-white/70 text-xs mt-1">先週より改善中 📈</div>
+          <div class="text-5xl font-black">D</div>
+          <div class="text-white/70 text-xs mt-1">要対応です。主要指標が大きく悪化しています</div>
         </div>
       </div>
 
@@ -108,7 +108,7 @@
         <span class="alert-badge text-xl">⚠️</span>
         <div>
           <span class="font-bold text-sm">アラート：</span>
-          <span class="text-sm text-white/90">Meta広告のCPAが先週比 +38%悪化しています。早めに確認してみてください！</span>
+          <span class="text-sm text-white/90">全体：売上に対する広告費率が 48.0% です。 ROASの低いキャンペーンを抑制し、広告費の増加が売上に連動しているか確認してください。</span>
         </div>
       </div>
       
@@ -521,6 +521,98 @@
       </div>
     </section>
 
+    
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-red-500 rounded-full inline-block"></span>
+        異常値・注意アラート
+      </h2>
+      <div class="space-y-3">
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-red-100 text-red-700 border-red-200">要対応</span>
+                <span class="text-xs text-gray-400">全体</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">広告費率が目標を超えています</div>
+              <p class="text-sm text-gray-600">売上に対する広告費率が 48.0% です。</p>
+              <p class="text-xs text-gray-400 mt-2">MER: 48.0% / 目標: 30%以下</p>
+              <p class="text-sm text-gray-700 mt-2">ROASの低いキャンペーンを抑制し、広告費の増加が売上に連動しているか確認してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">Meta広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">Meta広告のCPCが悪化しています</div>
+              <p class="text-sm text-gray-600">CPC が先週比で 28.1% 上昇しています。</p>
+              <p class="text-xs text-gray-400 mt-2">CPC（クリック単価）: ¥26 / ▲ 28.1% 先週比</p>
+              <p class="text-sm text-gray-700 mt-2">対象キャンペーンの配信面・クリエイティブ・検索語句を確認し、悪化要因の大きいものから調整してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">Shopify</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">売上が先週から大きく落ちています</div>
+              <p class="text-sm text-gray-600">販売合計が先週比 17.6% 減少しています。</p>
+              <p class="text-xs text-gray-400 mt-2">販売合計: ¥282,240 / 先週比 ▼ 17.6%</p>
+              <p class="text-sm text-gray-700 mt-2">流入減・CV率低下・平均注文単価のどこが主因かを優先して確認してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">全体</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">全体ROASが前週から悪化しています</div>
+              <p class="text-sm text-gray-600">過去4週グラフの直近ROASが前週比 19.4% 低下しています。</p>
+              <p class="text-xs text-gray-400 mt-2">売上・広告費 推移（過去4週）</p>
+              <p class="text-sm text-gray-700 mt-2">広告費を増やしたチャネルで、売上増加が追いついているか確認してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">全体</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">売上トレンドが前週から急落しています</div>
+              <p class="text-sm text-gray-600">過去4週グラフの直近売上が前週比 17.6% 減少しています。</p>
+              <p class="text-xs text-gray-400 mt-2">売上・広告費 推移（過去4週）</p>
+              <p class="text-sm text-gray-700 mt-2">週次の一時要因か、広告・サイト側の継続的な悪化かを切り分けてください。</p>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+    
+
     <section>
       <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
         <span class="w-1 h-6 bg-brand-orange rounded-full inline-block"></span>
@@ -548,22 +640,8 @@
                 <span class="text-xs font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">緊急</span>
                 <span class="text-xs text-gray-400">Google広告</span>
               </div>
-              <div class="font-bold text-gray-900 mb-1">ROAS低下中のGoogle広告は予算配分を即見直す</div>
-              <p class="text-sm text-gray-600">Google広告は広告費が<span class="font-bold text-brand-orange">¥113,088</span>まで増加する一方、ROASは<span class="font-bold text-brand-orange">1.53×</span>に低下し、CPAも<span class="font-bold text-brand-orange">¥6,282</span>へ悪化しています。特に「Sales-Performance Max-1」は費用<span class="font-bold text-brand-orange">¥87,251</span>でROAS<span class="font-bold text-brand-orange">1.60×</span>のため、予算上限・配信面・商品/検索語句の精査を優先してください。</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="action-card bg-white rounded-2xl shadow-sm p-5" style="border-left-color: #F59E0B;">
-          <div class="flex items-start gap-3">
-            <span class="text-2xl">🛒</span>
-            <div class="flex-1">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-xs font-black bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">推奨</span>
-                <span class="text-xs text-gray-400">Shopify</span>
-              </div>
-              <div class="font-bold text-gray-900 mb-1">セッション増でもCV率低下のため購入導線を改善する</div>
-              <p class="text-sm text-gray-600">セッション数は<span class="font-bold text-brand-orange">2,501</span>で先週比増加している一方、CV率は<span class="font-bold text-brand-orange">1.2%</span>に低下し、売上も<span class="font-bold text-brand-orange">¥282,240</span>で減少しています。商品ページ、カート、決済前の離脱要因を確認し、ファーストビューの訴求・送料/配送情報・ギフト需要向け導線を優先的に改善してください。</p>
+              <div class="font-bold text-gray-900 mb-1">低ROASのGoogle広告を抑制し、広告費率48.0%を止血</div>
+              <p class="text-sm text-gray-600">全体の広告費率が<span class="font-bold text-brand-orange">48.0%</span>で目標30%以下を大きく超過し、Google広告は広告費<span class="font-bold text-brand-orange">¥113,088</span>に対してROAS<span class="font-bold text-brand-orange">1.53×</span>まで低下しています。Sales-Performance Max-1はROAS1.60×、サウナギフト検索広告はROAS1.28×のため、予算・入札を一時的に抑制し、改善が見える配信面や検索語句に絞ってください。</p>
             </div>
           </div>
         </div>
@@ -576,8 +654,22 @@
                 <span class="text-xs font-black bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">推奨</span>
                 <span class="text-xs text-gray-400">Meta広告</span>
               </div>
-              <div class="font-bold text-gray-900 mb-1">成果の出ているギフトキャンペーンへ配分を寄せる</div>
-              <p class="text-sm text-gray-600">Meta広告全体はROAS<span class="font-bold text-brand-orange">3.73×</span>とGoogleを上回っており、特に「251206_ギフト-売上キャンペーン」はROAS<span class="font-bold text-brand-orange">5.73×</span>、CPA<span class="font-bold text-brand-orange">¥1,548</span>で好調です。一方で「260427_フォロワー獲得_OSENTO」は費用<span class="font-bold text-brand-orange">¥5,082</span>でCVがないため、配信目的を再確認し、短期売上目的の予算はギフト訴求へ寄せてください。</p>
+              <div class="font-bold text-gray-900 mb-1">Metaはギフト売上キャンペーンへ予算を寄せる</div>
+              <p class="text-sm text-gray-600">Meta広告は広告費が<span class="font-bold text-brand-orange">▼7.6%</span>ながら購入売上が<span class="font-bold text-brand-orange">▲86.5%</span>、ROAS<span class="font-bold text-brand-orange">3.73×</span>と好調です。特に「251206_ギフト-売上キャンペーン」はROAS5.73×・CV9件のため、「フォロワー獲得_OSENTO」のCV0件や「251110_売上キャンペーン」のROAS1.15×から予算を移してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="action-card bg-white rounded-2xl shadow-sm p-5" style="border-left-color: #EF4444;">
+          <div class="flex items-start gap-3">
+            <span class="text-2xl">🛒</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">緊急</span>
+                <span class="text-xs text-gray-400">Shopify</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">流入増でもCV率低下、商品ページ〜購入導線を即点検</div>
+              <p class="text-sm text-gray-600">セッション数は<span class="font-bold text-brand-orange">▲8.8%</span>ですが、CV率は<span class="font-bold text-brand-orange">1.2%</span>へ▼0.4pt、注文数も▼17.1%で売上低下に直結しています。広告流入先の商品ページ・カート・決済導線で、ギフト訴求、送料表示、購入ボタン周辺、離脱要因を優先確認してください。</p>
             </div>
           </div>
         </div>
@@ -587,7 +679,7 @@
 
     <footer class="text-center text-xs text-gray-400 pb-8 pt-4 border-t border-gray-200">
       <p>このレポートは自動生成されています。数値は Shopify および各広告プラットフォームのデータに基づきます。</p>
-      <p class="mt-1">ABiL Weekly Report • 生成日時: 2026年5月11日 21:56</p>
+      <p class="mt-1">ABiL Weekly Report • 生成日時: 2026年5月11日 22:52</p>
     </footer>
 
   </div>
