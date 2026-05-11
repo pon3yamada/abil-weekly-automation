@@ -87,6 +87,14 @@ jobs:
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           GENERATE_ACTIONS_PROVIDER: ${{ secrets.GENERATE_ACTIONS_PROVIDER }}
         run: |
+          python3 - <<'PYCHECK'
+          import os
+          for name in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+              v = (os.environ.get(name) or "").strip()
+              print(f"LLM diagnostics: {name}={'set' if v else 'missing'}")
+          prov = (os.environ.get("GENERATE_ACTIONS_PROVIDER") or "").strip()
+          print(f"LLM diagnostics: GENERATE_ACTIONS_PROVIDER={prov or '(unset)'}")
+          PYCHECK
           python3 src/generate_actions.py \
             --base build/report_merged.json \
             --out  build/report_merged.json \

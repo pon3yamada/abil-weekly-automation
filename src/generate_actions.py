@@ -280,11 +280,46 @@ def _pick_llm() -> tuple[str | None, str, str]:
         return "openai", oai, om
     if anth and oai:
         print(
-            "notice: ANTHROPIC_API_KEY と OPENAI_API_KEY の両方があります。Anthropic を使います。OpenAI にする場合は GENERATE_ACTIONS_PROVIDER=openai を設定してください",
+            "notice: ANTHROPIC_API_KEY と OPENAI_API_KEY の両方があります。"
+            "既定では OpenAI を使います。Anthropic に固定する場合は GENERATE_ACTIONS_PROVIDER=anthropic を設定してください",
             file=sys.stderr,
         )
-        return "anthropic", anth, am
+        return "openai", oai, om
     return None, "", ""
+
+
+def _try_generate_actions(
+    *,
+    ctx: dict[str, Any],
+    provider: str,
+    api_key: str,
+    model: str,
+    explicit_pref: bool,
+) -> tuple[list[dict[str, str]] | None, str, str, Exception | None]:
+    """戻り値: (actions または None, 実際に使った provider, model, 失敗時の例外)。"""
+    try:
+        if provider == "openai":
+            return _call_openai(api_key=api_key, model=model, context=ctx), provider, model, None
+        act = _call_claude(api_key=api_key, model=model, context=ctx)
+        return act, provider, model, None
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError, KeyError) as e:
+        oai = (os.environ.get("OPENAI_API_KEY") or "").strip()
+        om = (os.environ.get("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL).strip()
+        if (
+            provider == "anthropic"
+            and oai
+            and not explicit_pref
+        ):
+            print(
+                f"notice: Anthropic での改善アクション生成に失敗したため OpenAI にフォールバックします（初回エラー: {e}）",
+                file=sys.stderr,
+            )
+            try:
+                act = _call_openai(api_key=oai, model=om, context=ctx)
+                return act, "openai", om, None
+            except (OSError, RuntimeError, ValueError, json.JSONDecodeError, KeyError) as e2:
+                return None, provider, model, e2
+        return None, provider, model, e
 
 
 def main() -> int:
@@ -333,14 +368,18 @@ def main() -> int:
         return 0
 
     ctx = _report_context(raw)
-    try:
-        if provider == "openai":
-            actions = _call_openai(api_key=api_key, model=model, context=ctx)
-        else:
-            actions = _call_claude(api_key=api_key, model=model, context=ctx)
-    except (OSError, RuntimeError, ValueError, json.JSONDecodeError, KeyError) as e:
-        label = "OpenAI" if provider == "openai" else "Anthropic"
-        print(f"error: {label} での改善アクション生成に失敗: {e}", file=sys.stderr)
+    pref_raw = (os.environ.get("GENERATE_ACTIONS_PROVIDER") or "").strip().lower()
+    explicit_pref = pref_raw in ("anthropic", "claude", "openai", "gpt")
+
+    actions, final_provider, final_model, gen_err = _try_generate_actions(
+        ctx=ctx,
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        explicit_pref=explicit_pref,
+    )
+    if actions is None and gen_err is not None:
+        print(f"error: 改善アクション生成に失敗: {gen_err}", file=sys.stderr)
         if soft_fail:
             raw["report"].pop("actions_meta", None)
             args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -359,11 +398,11 @@ def main() -> int:
             return 0
         return 1
 
-    meta_source = "openai" if provider == "openai" else "anthropic"
+    meta_source = "openai" if final_provider == "openai" else "anthropic"
     raw["report"]["actions"] = actions
     raw["report"]["actions_meta"] = {
         "source": meta_source,
-        "model": model,
+        "model": final_model,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)

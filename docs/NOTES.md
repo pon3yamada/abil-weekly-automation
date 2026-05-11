@@ -16,6 +16,7 @@
 ### 2026-05-08 — チェックポイント（フェーズ8・9 実装・LLM 運用の区切り）
 
 - **やったこと（この区切りまで）**
+  - （後追い）両方 Secrets があると Anthropic が先で失敗 → ソフトフェイルでサンプルのまま、という運用トラブルに対し、**既定プロバイダを OpenAI に変更し、Anthropic 失敗時は（明示 Anthropic でない限り）OpenAI にフォールバック**。Actions の LLM ステップに **`LLM diagnostics`** ログを追加。
   - `src/generate_actions.py`: **Anthropic (Claude)** または **OpenAI**（既定モデル `gpt-5.5`、`OPENAI_MODEL` で上書き可）で `report.actions` を3件生成。`--soft-fail` / `GENERATE_ACTIONS_SOFT_FAIL` で API 失敗時も既存 `actions` を維持して終了コード0。成功時のみ `report.actions_meta`（`source` / `model` / `generated_at`）。
   - `src/post_slack.py`: Pages デプロイ後に **Slack Incoming Webhook** でレポート URL と短文サマリー投稿（未設定時はスキップ）。
   - `.github/workflows/pages.yml`: 上記を組み込み。LLM ステップに `OPENAI_API_KEY`・`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER` 等を `env` で渡し可能。
@@ -24,11 +25,11 @@
 
 - **次にやること（再開時・優先の目安）**
   1. **LLM の動作確認**: Actions の「**LLM で改善アクションを生成**」ステップのログを開き、エラーなし・`actions_meta` が意図どおりか確認。ローカルなら `.env` で `python3 src/generate_actions.py --base … --out …`（必要なら `--soft-fail` なしで失敗を明示）。
-  2. **改善アクションが HTML で変わらないとき**（よくある原因）: `ANTHROPIC_API_KEY` と `OPENAI_API_KEY` **両方が Secrets にある**と **既定で Anthropic が優先**される。OpenAI だけ使いたい場合は Secret **`GENERATE_ACTIONS_PROVIDER`** = `openai` を追加するか、未使用の Anthropic 用 Secret を削除。API エラー時は `--soft-fail` のため **ステップは緑でも中身はサンプルのまま** — ログに `error: …改善アクション生成に失敗` が出ていないか見る。
+  2. **改善アクションが HTML で変わらないとき**: **両方のキーがある場合は既定で OpenAI**（残骸の Anthropic Secret があっても OpenAI が先に試される）。それでも変わらない場合は **OpenAI 側の API エラー**で `--soft-fail` によりサンプルのまま残っている可能性が高い。Actions の **「LLM で改善アクションを生成」** で `LLM diagnostics:` と `error: 改善アクション生成に失敗` を確認。**Anthropic に固定**したいときは `GENERATE_ACTIONS_PROVIDER=anthropic`。OpenAI を使わないなら `OPENAI_API_KEY` を Secrets から外す。
   3. **マイルストーン**: [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10**（Shopify スコープでセッション・CVR 実数化）または **フェーズ7**（異常値検知・アラート）。
 
 - **GitHub Secrets（LLM / Slack 関連の目安）**
-  - 改善アクション: `ANTHROPIC_API_KEY`（任意） / `ANTHROPIC_MODEL`（任意） / `OPENAI_API_KEY`（任意） / `OPENAI_MODEL`（任意） / **`GENERATE_ACTIONS_PROVIDER`**（`openai` または `anthropic` — 両キーがあるときの優先を固定したい場合）
+  - 改善アクション: `ANTHROPIC_API_KEY`（任意） / `ANTHROPIC_MODEL`（任意） / `OPENAI_API_KEY`（任意） / `OPENAI_MODEL`（任意） / **`GENERATE_ACTIONS_PROVIDER`**（任意。**両キーともあるときの既定は OpenAI**。Anthropic だけ使いたいときは `anthropic`。OpenAI を明示だけしたいときは `openai`）
   - Slack: `SLACK_WEBHOOK_URL`（任意）
   - 登録手順の要約: Repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**（名前はワークフローの `secrets.名前` と完全一致）
 
