@@ -64,6 +64,9 @@ HEADER = [
     "Google CPC（円）",
     "Google CVR（%）",
     "Google ROAS",
+    # 既存シートの行位置を崩さないため、フェーズ10の追加指標は末尾に追加する
+    "Shopifyセッション数",
+    "Shopify CV率（%）",
 ]
 
 
@@ -123,11 +126,15 @@ def build_row(report: dict) -> list:
     sh_revenue = _metric_value(shopify_metrics, "週次売上（税込）")
     sh_aov = _metric_value(shopify_metrics, "平均注文単価")
     sh_repeat = _metric_value(shopify_metrics, "既存顧客による注文の割合")
+    sh_sessions = _metric_value(shopify_metrics, "セッション数")
+    sh_cvr = _metric_value(shopify_metrics, "CV率（注文/セッション）")
 
     sh_orders_raw = _strip_money(sh_orders)  # 数値文字列そのまま
     sh_revenue_raw = _strip_money(sh_revenue)
     sh_aov_raw = _strip_money(sh_aov)
     sh_repeat_raw = _strip_pct(sh_repeat)
+    sh_sessions_raw = _strip_money(sh_sessions)
+    sh_cvr_raw = _strip_pct(sh_cvr)
 
     # ── Meta
     meta_raw = report.get("meta_ads", {}).get("_raw", {})
@@ -199,6 +206,9 @@ def build_row(report: dict) -> list:
         google_cpc,
         google_cvr,
         google_roas,
+        # フェーズ10追加指標（既存行の互換性維持のため末尾）
+        sh_sessions_raw,
+        sh_cvr_raw,
     ]
 
 

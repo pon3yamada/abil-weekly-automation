@@ -13,7 +13,7 @@
 | `fetch_meta.py` | Meta Marketing API でインサイト取得 → `report.meta_ads`（指標 + キャンペーン別）を更新 |
 | `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
 | `update_trend_chart.py` | 過去 N 週を Shopify / Meta / Google から取得し、`report.trend_chart`（推移グラフ用）を更新。CI では過去4週（`pages.yml`） |
-| `append_to_sheets.py` | マージ済み JSON を読み、Google Sheets の「週次データ」シートに週ごと**列**として追記（A 列＝指標）。`.env` に `GOOGLE_SHEETS_*`、CI では [Secrets](../docs/NOTES.md) 参照。書き込み前にシートを必要行列入りまで拡張 |
+| `append_to_sheets.py` | マージ済み JSON を読み、Google Sheets の「週次データ」シートに週ごと**列**として追記（A 列＝指標）。Shopify セッション数・CV率も末尾行に蓄積。`.env` に `GOOGLE_SHEETS_*`、CI では [Secrets](../docs/NOTES.md) 参照。書き込み前にシートを必要行列入りまで拡張 |
 | `backfill_sheets.py` | 指定期間または `--weeks` 分、週ごとに fetch → `append_to_sheets` を連続実行（履歴の一括投入）。`--spreadsheet-id` で検証用ブックを指定可 |
 | `generate_index.py` | `data/reports_index.json` からトップページ（レポート一覧）HTML を生成 |
 | `generate_actions.py` | **Anthropic (Claude)** または **OpenAI**（Chat Completions、`response_format: json_object`）。**`temperature` は送信しない**（`gpt-5.5` 等で 400 になるため）。`report.actions` を3件生成、`actions_meta` に `anthropic` / `openai`。**両キー時は既定 OpenAI**、`GENERATE_ACTIONS_PROVIDER` で固定可。明示 Anthropic でないときは Claude 失敗後に OpenAI へフォールバック。`--soft-fail` で失敗時も既存 `actions` で終了0。 **[NOTES の 2026-05-11](../docs/NOTES.md)** に本番確認とトラブルメモあり |
