@@ -217,7 +217,6 @@ def _call_openai(
         },
         json={
             "model": model,
-            "temperature": 0.3,
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system},
