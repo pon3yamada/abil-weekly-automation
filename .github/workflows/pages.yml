@@ -166,14 +166,16 @@ jobs:
         run: |
           python3 - <<'EOF'
           import json, os
-          from datetime import datetime, timezone
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
 
           idx_path = "src/data/reports_index.json"
           reports = json.loads(open(idx_path).read())
 
           slug = os.environ["WEEK_SLUG"]
           period = os.environ["PERIOD_RANGE"]
-          now_jst = datetime.now(timezone.utc).strftime("%Y年%-m月%-d日 %H:%M")
+          d = datetime.now(ZoneInfo("Asia/Tokyo"))
+          now_jst = f"{d.year}年{d.month}月{d.day}日 {d.hour:02d}:{d.minute:02d}"
 
           # 重複を防ぐ（同じスラッグなら上書き）
           reports = [r for r in reports if r.get("slug") != slug]
