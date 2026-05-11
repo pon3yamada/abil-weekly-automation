@@ -548,8 +548,8 @@
                 <span class="text-xs font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">緊急</span>
                 <span class="text-xs text-gray-400">Google広告</span>
               </div>
-              <div class="font-bold text-gray-900 mb-1">低ROASのGoogle広告を即時絞り込み、MER悪化を止める</div>
-              <p class="text-sm text-gray-600">Google広告は広告費が<span class="font-bold text-brand-orange">¥113,088</span>まで増える一方、ROASは<span class="font-bold text-brand-orange">1.53×</span>、CPAは<span class="font-bold text-brand-orange">¥6,282</span>で先週比悪化しています。特にSales-Performance Max-1は費用が大きいため、配信面・検索語句・商品別実績を確認し、成果の低い配信への予算を抑制してください。</p>
+              <div class="font-bold text-gray-900 mb-1">ROAS 1.53×のGoogle広告は予算配分と配信面を即点検</div>
+              <p class="text-sm text-gray-600">Google広告は広告費が<span class="font-bold text-brand-orange">¥113,088</span>まで増える一方、売上は▼8.6%、ROASは<span class="font-bold text-brand-orange">1.53×</span>へ低下しています。特にSales-Performance Max-1は費用¥87,251・CVR 1.00%のため、商品別・検索語句・アセット別の成果を確認し、低効率配信の抑制を優先してください。</p>
             </div>
           </div>
         </div>
@@ -562,8 +562,8 @@
                 <span class="text-xs font-black bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">推奨</span>
                 <span class="text-xs text-gray-400">Meta広告</span>
               </div>
-              <div class="font-bold text-gray-900 mb-1">高ROASのギフト訴求へMeta予算を寄せる</div>
-              <p class="text-sm text-gray-600">Meta広告全体はROAS<span class="font-bold text-brand-orange">3.73×</span>、CPA<span class="font-bold text-brand-orange">¥2,249</span>と良好で、特に「251206_ギフト-売上キャンペーン」はROAS<span class="font-bold text-brand-orange">5.73×</span>・CV9件です。一方「260427_フォロワー獲得_OSENTO」は費用<span class="font-bold text-brand-orange">¥5,082</span>でCV0件のため、短期売上重視なら予算をギフトキャンペーンへ寄せてください。</p>
+              <div class="font-bold text-gray-900 mb-1">ギフト売上キャンペーンへMeta予算を寄せる</div>
+              <p class="text-sm text-gray-600">Meta広告全体はROAS<span class="font-bold text-brand-orange">3.73×</span>、購入売上▲86.5%と改善しており、キャンペーン別では「251206_ギフト-売上キャンペーン」がROAS<span class="font-bold text-brand-orange">5.73×</span>・CV9件で牽引しています。一方で「260427_フォロワー獲得_OSENTO」は費用¥5,082でCV0件のため、短期の売上目的では予算をギフト売上キャンペーンへ再配分してください。</p>
             </div>
           </div>
         </div>
@@ -576,8 +576,8 @@
                 <span class="text-xs font-black bg-blue-100 text-brand-navy px-2 py-0.5 rounded-full">中期</span>
                 <span class="text-xs text-gray-400">Shopify</span>
               </div>
-              <div class="font-bold text-gray-900 mb-1">既存顧客と平均注文単価の落ち込みを回復する</div>
-              <p class="text-sm text-gray-600">Shopifyは売上が<span class="font-bold text-brand-orange">¥282,240</span>で先週比17.6%減、注文件数も29件で17.1%減、平均注文単価も2.9%減です。既存顧客による注文割合も<span class="font-bold text-brand-orange">7.1%</span>まで下がっているため、購入者向けの再購入オファーやギフトセット訴求で注文数と単価の両方を底上げしてください。</p>
+              <div class="font-bold text-gray-900 mb-1">既存顧客施策とセット提案で注文数・AOVの下落を補う</div>
+              <p class="text-sm text-gray-600">Shopifyは売上▼17.6%、注文件数▼17.1%、平均注文単価▼2.9%、既存顧客による注文割合も<span class="font-bold text-brand-orange">7.1%</span>まで低下しています。購入者向けの再購入メール、ギフト用途のセット商品・送料無料ライン訴求を強化し、注文数とAOVの回復を狙ってください。</p>
             </div>
           </div>
         </div>
@@ -605,10 +605,10 @@
       btn.classList.remove('text-gray-600');
     }
 
-    const trendLabels = ["3/17\u9031", "3/24\u9031", "3/31\u9031", "4/7\u9031\uff08\u4eca\u9031\uff09"];
-    const trendSales = [310000, 328000, 340000, 375000];
-    const trendAdSpend = [88000, 92000, 95000, 100000];
-    const trendRoas = [3.52, 3.57, 3.58, 3.75];
+    const trendLabels = ["4/13\u9031", "4/20\u9031", "4/27\u9031", "5/4\u9031\uff08\u4eca\u9031\uff09"];
+    const trendSales = [381120, 366100, 342440, 282240];
+    const trendAdSpend = [122128, 120036, 132502, 135582];
+    const trendRoas = [3.12, 3.05, 2.58, 2.08];
 
     const ctx = document.getElementById('trendChart').getContext('2d');
     new Chart(ctx, {
