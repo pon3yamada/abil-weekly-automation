@@ -29,7 +29,7 @@
   3. **マイルストーン**: [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10**（Shopify スコープでセッション・CVR 実数化）または **フェーズ7**（異常値検知・アラート）。
 
 - **GitHub Secrets（LLM / Slack 関連の目安）**
-  - 改善アクション: `ANTHROPIC_API_KEY`（任意） / `ANTHROPIC_MODEL`（任意） / `OPENAI_API_KEY`（任意） / `OPENAI_MODEL`（任意） / **`GENERATE_ACTIONS_PROVIDER`**（任意。**両キーともあるときの既定は OpenAI**。Anthropic だけ使いたいときは `anthropic`。OpenAI を明示だけしたいときは `openai`）
+  - 改善アクション: `ANTHROPIC_API_KEY`（任意） / `ANTHROPIC_MODEL`（任意） / `OPENAI_API_KEY`（任意） / `OPENAI_MODEL`（任意） / **`GENERATE_ACTIONS_PROVIDER`**（任意。未設定でよい。**`anthropic` だけ入れて Claude キーが無い**と旧版ではスキップになったので、不用意に作らない。OpenAI だけ運用なら **この Secret は作らない**のが確実）
   - Slack: `SLACK_WEBHOOK_URL`（任意）
   - 登録手順の要約: Repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**（名前はワークフローの `secrets.名前` と完全一致）
 

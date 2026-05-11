@@ -260,16 +260,30 @@ def _pick_llm() -> tuple[str | None, str, str]:
     if pref in ("anthropic", "claude"):
         if anth:
             return "anthropic", anth, am
+        if oai:
+            print(
+                "notice: GENERATE_ACTIONS_PROVIDER が anthropic/claude ですが ANTHROPIC_API_KEY がありません。"
+                "OPENAI_API_KEY があるため OpenAI で続行します（Secret の GENERATE_ACTIONS_PROVIDER を削除するか anthropic でなければ不要です）",
+                file=sys.stderr,
+            )
+            return "openai", oai, om
         print(
-            "notice: GENERATE_ACTIONS_PROVIDER=anthropic が指定されていますが ANTHROPIC_API_KEY がありません",
+            "notice: GENERATE_ACTIONS_PROVIDER=anthropic が指定されていますが ANTHROPIC_API_KEY も OPENAI_API_KEY もありません",
             file=sys.stderr,
         )
         return None, "", ""
     if pref in ("openai", "gpt"):
         if oai:
             return "openai", oai, om
+        if anth:
+            print(
+                "notice: GENERATE_ACTIONS_PROVIDER が openai ですが OPENAI_API_KEY がありません。"
+                "ANTHROPIC_API_KEY があるため Anthropic で続行します",
+                file=sys.stderr,
+            )
+            return "anthropic", anth, am
         print(
-            "notice: GENERATE_ACTIONS_PROVIDER=openai が指定されていますが OPENAI_API_KEY がありません",
+            "notice: GENERATE_ACTIONS_PROVIDER=openai が指定されていますが OPENAI_API_KEY も ANTHROPIC_API_KEY もありません",
             file=sys.stderr,
         )
         return None, "", ""
