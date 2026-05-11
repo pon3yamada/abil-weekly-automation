@@ -14,7 +14,8 @@
 | `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
 | `update_trend_chart.py` | 過去 N 週を Shopify / Meta / Google から取得し、`report.trend_chart`（推移グラフ用）を更新。CI では過去4週（`pages.yml`） |
 | `append_to_sheets.py` | マージ済み JSON を読み、Google Sheets の「週次データ」シートに週ごと**列**として追記（A 列＝指標）。Shopify セッション数・CV率も末尾行に蓄積。`.env` に `GOOGLE_SHEETS_*`、CI では [Secrets](../docs/NOTES.md) 参照。書き込み前にシートを必要行列入りまで拡張 |
-| `backfill_sheets.py` | 指定期間または `--weeks` 分、週ごとに fetch → `append_to_sheets` を連続実行（履歴の一括投入）。`--spreadsheet-id` で検証用ブックを指定可 |
+| `backfill_sheets.py` | 指定期間または `--weeks` 分、週ごとに fetch → `append_to_sheets` を連続実行（履歴の一括投入）。`--start-date` のみでも可（終了は直近締め週の月曜まで）。`--spreadsheet-id` で検証用ブックを指定可 |
+| `patch_sheet_shopify_sessions.py` | 既存シートの該当周列だけ、`Shopifyセッション数` / `Shopify CV率（%）` を `fetch_shopify` の結果で書き換え（Meta/Google など他行は変更しない）。長期間のセッション・CV率の後追い投入向け |
 | `generate_index.py` | `data/reports_index.json` からトップページ（レポート一覧）HTML を生成 |
 | `generate_actions.py` | **Anthropic (Claude)** または **OpenAI**（Chat Completions、`response_format: json_object`）。**`temperature` は送信しない**（`gpt-5.5` 等で 400 になるため）。`report.actions` を3件生成、`actions_meta` に `anthropic` / `openai`。**両キー時は既定 OpenAI**、`GENERATE_ACTIONS_PROVIDER` で固定可。明示 Anthropic でないときは Claude 失敗後に OpenAI へフォールバック。`--soft-fail` で失敗時も既存 `actions` で終了0。 **[NOTES の 2026-05-11](../docs/NOTES.md)** に本番確認とトラブルメモあり |
 | `post_slack.py` | Slack Incoming Webhook に週次レポート URL と短文サマリーを投稿。`SLACK_WEBHOOK_URL` 未設定時は何もしない |
@@ -66,6 +67,18 @@ python3 src/backfill_sheets.py --weeks 4 --spreadsheet-id <検証用Spreadsheet 
 
 # 期間を明示する場合（どちらも月曜日）
 python3 src/backfill_sheets.py --start-date 2025-05-12 --end-date 2026-05-04 --continue-on-error
+
+# 開始月曜だけ指定すると、終了は「直近の締め週の月曜」まで自動
+python3 src/backfill_sheets.py --start-date 2023-08-28 --continue-on-error
+```
+
+過去すべての列について **セッション数・CV率だけ** を埋め直したい場合（広告データはそのまま）:
+
+```bash
+python3 src/patch_sheet_shopify_sessions.py \
+  --start-date 2023-08-28 \
+  --continue-on-error \
+  --sleep-seconds 0.8
 ```
 
 広告API取得を一時的に避けたい場合は `--skip-ads`、Sheets書き込み前にJSON生成だけ確認したい場合は `--skip-sheets` を付けます。

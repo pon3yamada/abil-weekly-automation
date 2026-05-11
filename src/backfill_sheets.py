@@ -38,12 +38,20 @@ def _run(cmd: list[str], *, dry_run: bool, continue_on_error: bool) -> bool:
 
 def _week_starts(*, anchor: date, weeks: int, start_date: str, end_date: str) -> list[date]:
     if start_date or end_date:
-        if not start_date or not end_date:
-            raise ValueError("--start-date と --end-date はセットで指定してください")
-        start = date.fromisoformat(start_date)
-        end = date.fromisoformat(end_date)
+        if start_date and not end_date:
+            start = date.fromisoformat(start_date)
+            end = _last_closed_week_monday(anchor)
+        elif end_date and start_date:
+            start = date.fromisoformat(start_date)
+            end = date.fromisoformat(end_date)
+        else:
+            raise ValueError("--start-date のみ指定するか、--start-date と --end-date の両方を指定してください")
+
         if start.weekday() != 0:
             raise ValueError("--start-date は月曜日を指定してください")
+        if end.weekday() != 0:
+            raise ValueError("--end-date が指定されているときは月曜日にしてください（省略時は直近締め週の月曜に自動決定されます）")
+
         if end < start:
             raise ValueError("--end-date は --start-date 以降を指定してください")
         out: list[date] = []
@@ -65,7 +73,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--weeks", type=int, default=52, help="直近締め週から何週分を投入するか")
     parser.add_argument("--start-date", default="", help="投入開始週の月曜日 YYYY-MM-DD")
-    parser.add_argument("--end-date", default="", help="投入終了週の月曜日 YYYY-MM-DD")
+    parser.add_argument("--end-date", default="", help="投入終了週の月曜日。省略時は直近締め週の月曜")
     parser.add_argument("--anchor-date", default="", help="直近締め週計算の基準日 YYYY-MM-DD")
     parser.add_argument("--base-template", type=Path, default=ROOT / "src" / "data" / "sample_report.json")
     parser.add_argument("--work-dir", type=Path, default=ROOT / "build" / "backfill")
