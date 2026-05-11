@@ -44,6 +44,8 @@ HEADER = [
     "── Shopify ──",
     "注文件数",
     "Shopify売上（円）",
+    "Shopifyセッション数",
+    "Shopify CV率（%）",
     "AOV（円）",
     "既存顧客比率（%）",
     # Meta セクション
@@ -64,9 +66,6 @@ HEADER = [
     "Google CPC（円）",
     "Google CVR（%）",
     "Google ROAS",
-    # 既存シートの行位置を崩さないため、フェーズ10の追加指標は末尾に追加する
-    "Shopifyセッション数",
-    "Shopify CV率（%）",
 ]
 
 
@@ -186,6 +185,8 @@ def build_row(report: dict) -> list:
         "",
         sh_orders_raw,
         sh_revenue_raw,
+        sh_sessions_raw,
+        sh_cvr_raw,
         sh_aov_raw,
         sh_repeat_raw,
         # Meta セクション
@@ -206,9 +207,6 @@ def build_row(report: dict) -> list:
         google_cpc,
         google_cvr,
         google_roas,
-        # フェーズ10追加指標（既存行の互換性維持のため末尾）
-        sh_sessions_raw,
-        sh_cvr_raw,
     ]
 
 
