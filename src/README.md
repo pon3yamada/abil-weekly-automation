@@ -2,7 +2,7 @@
 
 週次レポート自動化の **Python コード**を置く場所です。
 
-## 現状（フェーズ10コード完了・フェーズ7は後回し）
+## 現状（フェーズ7・10コード完了）
 
 | ファイル | 役割 |
 |---|---|
@@ -13,6 +13,7 @@
 | `fetch_meta.py` | Meta Marketing API でインサイト取得 → `report.meta_ads`（指標 + キャンペーン別）を更新 |
 | `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
 | `update_trend_chart.py` | 過去 N 週を Shopify / Meta / Google から取得し、`report.trend_chart`（推移グラフ用）を更新。CI では過去4週（`pages.yml`） |
+| `generate_alerts.py` | `report.summary` / 各広告指標 / `trend_chart` から異常値・先週比悪化を検知し、`report.alert` / `report.alerts` を更新。あわせてアラート件数・重要度と主要KPIから `overall_score` / `score_subtitle` / `score_meta` を自動更新 |
 | `append_to_sheets.py` | マージ済み JSON を読み、Google Sheets の「週次データ」シートに週ごと**列**として追記（A 列＝指標）。Shopify セッション数・CV率も末尾行に蓄積。`.env` に `GOOGLE_SHEETS_*`、CI では [Secrets](../docs/NOTES.md) 参照。書き込み前にシートを必要行列入りまで拡張 |
 | `backfill_sheets.py` | 指定期間または `--weeks` 分、週ごとに fetch → `append_to_sheets` を連続実行（履歴の一括投入）。`--start-date` のみでも可（終了は直近締め週の月曜まで）。`--spreadsheet-id` で検証用ブックを指定可 |
 | `patch_sheet_shopify_sessions.py` | 既存シートの該当周列だけ、`Shopifyセッション数` / `Shopify CV率（%）` を `fetch_shopify` の結果で書き換え（Meta/Google など他行は変更しない）。長期間のセッション・CV率の後追い投入向け |
@@ -41,15 +42,38 @@ python3 src/update_trend_chart.py --base build/report_merged.json --out build/re
 # 5. Google Sheets に週次列を追記（任意・.env に GOOGLE_SHEETS_SPREADSHEET_ID と認証情報）
 python3 src/append_to_sheets.py --base build/report_merged.json
 
-# 6. LLM で改善アクションを生成（任意・`ANTHROPIC_API_KEY` または `OPENAI_API_KEY`。CI と同様にフォールバックするなら --soft-fail）
+# 6. 異常値・注意アラートを生成
+python3 src/generate_alerts.py --base build/report_merged.json --out build/report_merged.json
+
+# 7. LLM で改善アクションを生成（任意・`ANTHROPIC_API_KEY` または `OPENAI_API_KEY`。CI と同様にフォールバックするなら --soft-fail）
 python3 src/generate_actions.py --base build/report_merged.json --out build/report_merged.json --soft-fail
 
-# 7. HTML 生成
+# 8. HTML 生成
 python3 src/generate_report.py -i build/report_merged.json -o build/report.html
 
-# 8. Slack 通知（任意・公開 URL と .env の SLACK_WEBHOOK_URL）
+# 9. Slack 通知（任意・公開 URL と .env の SLACK_WEBHOOK_URL）
 # python3 src/post_slack.py --base build/report_merged.json --report-url "https://<pages>/<週スラッグ>/"
 ```
+
+### 総合スコアとアラート
+
+`generate_alerts.py` は異常値・注意アラートを作った後、同じ JSON 内の `overall_score` / `score_subtitle` も自動更新します。計算根拠は `report.score_meta` に残ります。
+
+スコアは 100 点満点の内部点数からグレードに変換します。初期値は **85点** です。
+
+| 条件 | 点数 |
+|---|---:|
+| `critical`（要対応）アラート 1件 | -15 |
+| `warning`（注意）アラート 1件 | -6 |
+| 売上先週比 +10%以上 | +5 |
+| 売上先週比 -10%以下 | -8 |
+| 売上先週比 -20%以下 | -15 |
+| MER 30%超 | -8 |
+| MER 40%超 | -15 |
+| 全体ROAS直近 +10%以上 | +4 |
+| 全体ROAS直近 -15%以下 | -8 |
+
+グレードは `90〜100=A`、`80〜89=B+`、`70〜79=B`、`60〜69=C+`、`50〜59=C`、`49以下=D` です。
 
 ### Google Sheets への過去履歴バックフィル
 

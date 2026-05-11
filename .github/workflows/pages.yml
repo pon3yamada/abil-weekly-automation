@@ -100,6 +100,13 @@ jobs:
             --base build/report_merged.json
         continue-on-error: true   # Sheets 書き込み失敗時もレポート生成を継続
 
+      # ── 異常値・注意アラート（JSON の report.alert / report.alerts を更新）────
+      - name: 異常値・注意アラートを生成 → build/report_merged.json
+        run: |
+          python3 src/generate_alerts.py \
+            --base build/report_merged.json \
+            --out  build/report_merged.json
+
       # ── LLM: 改善アクション3件（JSON の report.actions を更新）──────────
       - name: LLM で改善アクションを生成 → build/report_merged.json
         env:

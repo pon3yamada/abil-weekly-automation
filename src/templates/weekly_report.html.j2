@@ -382,6 +382,34 @@
       </div>
     </section>
 
+    {% if report.alerts %}
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-red-500 rounded-full inline-block"></span>
+        異常値・注意アラート
+      </h2>
+      <div class="space-y-3">
+        {% for a in report.alerts %}
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border {{ a.severity_class }}">{{ a.severity_label }}</span>
+                <span class="text-xs text-gray-400">{{ a.channel }}</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">{{ a.title }}</div>
+              <p class="text-sm text-gray-600">{{ a.message }}</p>
+              <p class="text-xs text-gray-400 mt-2">{{ a.evidence }}</p>
+              <p class="text-sm text-gray-700 mt-2">{{ a.recommendation }}</p>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
     <section>
       <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
         <span class="w-1 h-6 bg-brand-orange rounded-full inline-block"></span>
