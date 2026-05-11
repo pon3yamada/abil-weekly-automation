@@ -13,7 +13,7 @@
 | `fetch_meta.py` | Meta Marketing API でインサイト取得 → `report.meta_ads`（指標 + キャンペーン別）を更新 |
 | `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
 | `append_to_sheets.py` | マージ済み JSON を読み、Google Sheets の「週次データ」シートに週ごと**列**として追記（A 列＝指標）。`.env` に `GOOGLE_SHEETS_*`、CI では [Secrets](../docs/NOTES.md) 参照 |
-| `generate_actions.py` | **Anthropic (Claude)** または **OpenAI**（Chat Completions、`response_format: json_object`）で `report.actions` を3件生成。成功時は `report.actions_meta.source` に `anthropic` / `openai`。**両方のキーがあるときは既定で OpenAI** — Anthropic に固定したいときは `GENERATE_ACTIONS_PROVIDER=anthropic`。Anthropic が失敗し、かつ明示で Anthropic 固定でないときは OpenAI に **自動フォールバック**。`--soft-fail` / `GENERATE_ACTIONS_SOFT_FAIL` で失敗時も既存 `actions` のまま終了0 |
+| `generate_actions.py` | **Anthropic (Claude)** または **OpenAI**（Chat Completions、`response_format: json_object`）。**`temperature` は送信しない**（`gpt-5.5` 等で 400 になるため）。`report.actions` を3件生成、`actions_meta` に `anthropic` / `openai`。**両キー時は既定 OpenAI**、`GENERATE_ACTIONS_PROVIDER` で固定可。明示 Anthropic でないときは Claude 失敗後に OpenAI へフォールバック。`--soft-fail` で失敗時も既存 `actions` で終了0。 **[NOTES の 2026-05-11](../docs/NOTES.md)** に本番確認とトラブルメモあり |
 | `post_slack.py` | Slack Incoming Webhook に週次レポート URL と短文サマリーを投稿。`SLACK_WEBHOOK_URL` 未設定時は何もしない |
 | `requirements.txt` | `Jinja2` / `requests` / `python-dotenv` / `gspread` / `google-auth` |
 

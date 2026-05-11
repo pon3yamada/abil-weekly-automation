@@ -13,6 +13,25 @@
 - メモ:
 ```
 
+### 2026-05-11 — LLM 改善アクションが Actions・HTML まで反映されることを確認
+
+- **やったこと**
+  - **GitHub Actions（Deploy Weekly Report）** で週次レポートを実行し、「**AIによる改善アクション3選**」が **OpenAI で生成された内容に差し替わる**ことを確認。
+  - **ローカル**でも同一経路検証済み：`python3 src/generate_actions.py --base src/data/sample_report.json --out build/test_openai_actions.json` → 終了コード 0、`report.actions_meta` に `source: openai`、`actions` が3件。
+
+- **根本原因のメモ（再発時用）**
+  1. **OpenAI の `gpt-5.5` が `temperature: 0.3` を拒否**（400 `unsupported_value`）→ **`generate_actions.py` の Chat Completions ペイロードから `temperature` を削除**（API 既定のみ使用）。
+  2. **`ANTHROPIC_API_KEY` と `OPENAI_API_KEY` 両方**があると旧挙動で Anthropic 優先になり失敗しやすい → **両方あるとき既定は OpenAI**、および **Anthropic 失敗後の OpenAI フォールバック**、`GENERATE_ACTIONS_PROVIDER=anthropic` で Claude だけ指定したのにキーが無い場合は OpenAI で続行 等を実装済み。
+  3. **`--soft-fail`** で API エラーでもジョブは緑のまま → サンプルの `actions` のまま残る。ログの **`error:`** と **`LLM diagnostics:`** を見る。
+
+- **キーだけの速い確認**（認証のみ）  
+  `.env` を `source` したうえで `curl https://api.openai.com/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"` が JSON の `object: list` なら鍵は有効。
+
+- **次にやること**
+  - [docs/ROADMAP.md](./ROADMAP.md) に沿った **フェーズ10**（Shopify セッション・CV 実数化）または **フェーズ7**（異常値・アラート）。LLM の本番確認は完了。
+
+---
+
 ### 2026-05-08 — チェックポイント（フェーズ8・9 実装・LLM 運用の区切り）
 
 - **やったこと（この区切りまで）**
@@ -24,7 +43,7 @@
   - Repository に **改善アクション用の API キー**（例: **`OPENAI_API_KEY`**、`ANTHROPIC_API_KEY`）を Secrets へ登録する運用になる。
 
 - **次にやること（再開時・優先の目安）**
-  1. **LLM の動作確認**: Actions の「**LLM で改善アクションを生成**」ステップのログを開き、エラーなし・`actions_meta` が意図どおりか確認。ローカルなら `.env` で `python3 src/generate_actions.py --base … --out …`（必要なら `--soft-fail` なしで失敗を明示）。
+  1. **LLM の動作確認** → **2026-05-11 完了**（上の「### 2026-05-11」セクション）。
   2. **改善アクションが HTML で変わらないとき**: **両方のキーがある場合は既定で OpenAI**（残骸の Anthropic Secret があっても OpenAI が先に試される）。それでも変わらない場合は **OpenAI 側の API エラー**で `--soft-fail` によりサンプルのまま残っている可能性が高い。Actions の **「LLM で改善アクションを生成」** で `LLM diagnostics:` と `error: 改善アクション生成に失敗` を確認。**Anthropic に固定**したいときは `GENERATE_ACTIONS_PROVIDER=anthropic`。OpenAI を使わないなら `OPENAI_API_KEY` を Secrets から外す。
   3. **マイルストーン**: [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10**（Shopify スコープでセッション・CVR 実数化）または **フェーズ7**（異常値検知・アラート）。
 

@@ -22,7 +22,7 @@
 | **5** | **Google 広告 API** を追加（審査完了後） | ✅ 完了 | JSON に Google 指標が入る |
 | **6** | **Google Sheets** へ生データ追記（蓄積） | ✅ 完了 | A 列に指標・横軸に週の列が増える |
 | **7** | **異常値検知**（閾値・先週比）とレポート内アラート | 🔲 後回し | アラート文言がデータ駆動。**次の候補**: フェーズ10（データ実装）との前後は運用優先で決める |
-| **8** | **LLM（Claude または OpenAI）** で改善アクション3件を生成し JSON/HTML に反映 | ✅ 完了 | `src/generate_actions.py`。両方のキーがある場合は**既定で OpenAI**（古い空の Anthropic Secret で失敗しにくくする）。Anthropic 固定は `GENERATE_ACTIONS_PROVIDER=anthropic`。Anthropic 失敗時は（明示指定でない限り）OpenAI に自動フォールバック。`--soft-fail` で既存 `actions` 維持可 |
+| **8** | **LLM（Claude または OpenAI）** で改善アクション3件を生成し JSON/HTML に反映 | ✅ 完了 | `src/generate_actions.py`。既定 OpenAI（両キー時）。`temperature` は送らない（`gpt-5.5` 等の制約）。**2026-05-11** GitHub Actions・HTML 反映まで確認済み。`--soft-fail` 可 |
 | **9** | **Slack Incoming Webhook** で URL とサマリー投稿 | ✅ 完了 | `src/post_slack.py`・`SLACK_WEBHOOK_URL`。Pages デプロイ直後に通知。未設定時はスキップ |
 | **10** | **Shopify スコープ追加**（`read_reports` / `read_customer_events`）でセッション数・CV率を本物データに差し替え | 🔲 未着手（次の大きな実装候補） | セッション数・CV率が N/A／サンプル由来 → 実数値 |
 
