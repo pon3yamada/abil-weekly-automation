@@ -13,6 +13,56 @@
 - メモ:
 ```
 
+### 2026-05-11 — フェーズ7（異常値アラート・総合スコア自動計算）実装
+
+- **やったこと**
+  - **`src/generate_alerts.py`（新規）**  
+    週次レポート JSON の `report.summary` / `report.trend_chart` / `meta_ads.metrics` / `google_ads.metrics` から異常値・先週比悪化を検知し、`report.alert`（ヘッダー用の代表1件）と `report.alerts`（本文用の複数件）を生成。
+  - **総合スコア自動計算**  
+    `generate_alerts.py` の中で、アラート件数・重要度と主要KPIから `report.overall_score` / `report.score_subtitle` / `report.score_meta` を更新。  
+    `score_meta.reasons` に加点・減点理由、`score_meta.alert_counts` にアラート件数を保存。
+  - **`src/templates/weekly_report.html.j2`**  
+    本文に「**異常値・注意アラート**」セクションを追加。`report.alerts` があるときだけ表示。
+  - **`.github/workflows/pages.yml`**  
+    Sheets 追記後、LLM 改善アクション生成前に `python3 src/generate_alerts.py --base build/report_merged.json --out build/report_merged.json` を実行。  
+    これにより LLM 改善アクションも最新の `alert` / `alerts` / `overall_score` を参照できる。
+  - **`src/README.md` / `docs/ROADMAP.md`**  
+    フェーズ7を実装済みに更新し、アラート・総合スコアの運用基準を記録。
+
+- **アラート基準**
+  - 販売合計: 先週比 **-10%以下**で注意、**-20%以下**で要対応。
+  - 過去4週グラフの直近売上: 前週比 **-15%以下**で注意。
+  - MER: **30%超**で注意、**40%超**で要対応。
+  - 過去4週グラフの直近ROAS: 前週比 **-15%以下**で注意。
+  - Meta / Google の CPA・CPC: 先週比 **+20%以上**で注意、**+35%以上**で要対応。
+  - Meta / Google の ROAS: 先週比 **-0.3以上低下**で注意、**-0.8以上低下**で要対応。
+  - Meta / Google の CVR: 先週比 **-0.5pt以上低下**で注意、**-1.0pt以上低下**で要対応。
+
+- **総合スコア基準**
+  - 内部点数は **85点**から開始。
+  - `critical`（要対応）アラート 1件ごとに **-15点**。
+  - `warning`（注意）アラート 1件ごとに **-6点**。
+  - 売上先週比 **+10%以上**で **+5点**、**-10%以下**で **-8点**、**-20%以下**で **-15点**。
+  - MER **30%超**で **-8点**、**40%超**で **-15点**。
+  - 全体ROAS直近 **+10%以上**で **+4点**、**-15%以下**で **-8点**。
+  - グレード: `90〜100=A`、`80〜89=B+`、`70〜79=B`、`60〜69=C+`、`50〜59=C`、`49以下=D`。
+
+- **検証**
+  - `python3 src/generate_alerts.py --base src/data/sample_report.json --out build/test_score_alerts.json`
+  - `python3 src/generate_report.py -i build/test_score_alerts.json -o build/test_score_alerts.html`
+  - `python3 -m py_compile src/generate_alerts.py`
+  - サンプルではアラート0件、売上先週比 `+10.3%` により `85 + 5 = 90点`、`overall_score: A`。
+  - ReadLints で対象ファイルのエラーなし。
+
+- **コミット**
+  - `47de675 Add weekly alert scoring automation` を `main` に push 済み。
+
+- **運用メモ**
+  - 次回以降、週次 Actions では **Sheets 追記 → アラート・スコア生成 → LLM 改善アクション生成 → HTML生成** の順で動く。
+  - 運用して「厳しすぎる／甘すぎる」が見えたら、まずは `critical` / `warning` の減点幅、MER、売上、ROAS の閾値を調整する。
+
+---
+
 ### 2026-05-11 — LLM 改善アクションが Actions・HTML まで反映されることを確認
 
 - **やったこと**
