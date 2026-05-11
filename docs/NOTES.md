@@ -28,7 +28,44 @@
   `.env` を `source` したうえで `curl https://api.openai.com/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"` が JSON の `object: list` なら鍵は有効。
 
 - **次にやること**
-  - [docs/ROADMAP.md](./ROADMAP.md) に沿った **フェーズ10**（Shopify セッション・CV 実数化）または **フェーズ7**（異常値・アラート）。LLM の本番確認は完了。
+  - **フェーズ10**（Shopify セッション・CV 実数化）は **コード・デプロイ／トークン再取得まで完了**（下の「フェーズ10・Sheets・パッチ」セクション）。残りは運用で **過去週パッチの手動実行**が未なら実施、または [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ7**（異常値・アラート）。LLM の本番確認は完了。
+
+---
+
+### 2026-05-11 — フェーズ10（ShopifyQL セッション）・Sheets 反映・過去週のセッション／CV率パッチ
+
+- **やったこと**
+  - **`src/fetch_shopify.py`**  
+    GraphQL の **`shopifyqlQuery`** と ShopifyQL（`FROM sessions` / `SHOW sessions` / `SINCE`〜`UNTIL`）でセッション数を取得。Admin API **2025-10 以降**。**`read_reports`** スコープ必須。
+  - **`shopify.app.toml`** に `read_reports` を追加 → `shopify app deploy` で **abil-weekly-report-4** 等に反映。
+  - **`src/get_shopify_token.py`** の OAuth **`SCOPES`** に `read_reports` を追加（再取得 URL に `read_reports` が出るようにする）。
+  - **GitHub Secrets** `SHOPIFY_ACCESS_TOKEN` 更新、`.env` と同様。`SHOPIFY_API_VERSION` は `2026-04` で可（空ならコード既定 `2025-10`）。
+  - **`src/append_to_sheets.py`**  
+    A 列に **`Shopifyセッション数`** / **`Shopify CV率（%）`** を追加（`Shopify売上（円）` の直後になるよう **行順を調整**）。
+  - **`src/patch_sheet_shopify_sessions.py`（新規）**  
+    既存シートの **週列のみ** 上記2行を、`fetch_shopify` の結果で上書き。Meta/Google は触らない。  
+    **`Deploy Weekly Report` には載せず**、**ローカル等での手動実行のみ**。
+  - **`src/backfill_sheets.py`**  
+    **`--start-date` のみ**指定すると、終了週は **基準日に対する直近の締め週の月曜**まで自動。
+  - **[src/README.md](../src/README.md)** にパッチ実行例・ファイル表を追記。
+
+- **手動実行（過去〜最新のセッション／CV率だけ埋め直し）**
+
+```bash
+python3 src/patch_sheet_shopify_sessions.py \
+  --start-date 2023-08-28 \
+  --continue-on-error \
+  --sleep-seconds 0.8
+```
+
+  - **`--end-date` 省略時**も終了は上と同様（直近締め週の月曜まで）。
+  - A 列に `Shopifyセッション数` / `Shopify CV率（%）` が無い場合は、`append_to_sheets.py` で本番レイアウトを一度反映してから実行。
+  - Shopify 側に古い期間のデータが無い週は **N/A でスキップ**されうる。
+  - 中間 JSON: **`build/patch_shopify_sessions/`**
+
+- **次にやること（目安）**
+  - 上記パッチを **未実行なら** ローカルで実行（必要に応じ `--spreadsheet-id` で検証用ブック）。
+  - [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ7**（異常値・アラート）。
 
 ---
 
@@ -60,7 +97,8 @@
 
 - **次にやること（目安）**
   - 本番 Sheets への過去期間バックフィルが未完了なら、修正後の `append_to_sheets` で再実行 or `build/backfill/report_*.json` があれば `append_to_sheets` のみ再投入。
-  - [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10** / **フェーズ7**。
+  - **セッション／CV率の過去列だけ埋めたい場合**は `patch_sheet_shopify_sessions.py`（手動。**Actions 自動では走らない**）。全列を API で作り直すなら `backfill_sheets.py`（終了省略可）。
+  - [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ7**。（フェーズ10の実装・Sheets連携メモは上の「フェーズ10・Sheets・パッチ」）
 
 ---
 
@@ -77,7 +115,7 @@
 - **次にやること（再開時・優先の目安）**
   1. **LLM の動作確認** → **2026-05-11 完了**（上の「### 2026-05-11」セクション）。
   2. **改善アクションが HTML で変わらないとき**: **両方のキーがある場合は既定で OpenAI**（残骸の Anthropic Secret があっても OpenAI が先に試される）。それでも変わらない場合は **OpenAI 側の API エラー**で `--soft-fail` によりサンプルのまま残っている可能性が高い。Actions の **「LLM で改善アクションを生成」** で `LLM diagnostics:` と `error: 改善アクション生成に失敗` を確認。**Anthropic に固定**したいときは `GENERATE_ACTIONS_PROVIDER=anthropic`。OpenAI を使わないなら `OPENAI_API_KEY` を Secrets から外す。
-  3. **マイルストーン**: [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10**（Shopify スコープでセッション・CVR 実数化）または **フェーズ7**（異常値検知・アラート）。
+  3. **マイルストーン**: [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ7**（異常値検知・アラート）。**フェーズ10** は **2026-05-11「フェーズ10・Sheets・パッチ」** で実装・運用パス確定済み。
 
 - **GitHub Secrets（LLM / Slack 関連の目安）**
   - 改善アクション: `ANTHROPIC_API_KEY`（任意） / `ANTHROPIC_MODEL`（任意） / `OPENAI_API_KEY`（任意） / `OPENAI_MODEL`（任意） / **`GENERATE_ACTIONS_PROVIDER`**（任意。未設定でよい。**`anthropic` だけ入れて Claude キーが無い**と旧版ではスキップになったので、不用意に作らない。OpenAI だけ運用なら **この Secret は作らない**のが確実）
