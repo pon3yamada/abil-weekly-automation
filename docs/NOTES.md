@@ -32,6 +32,38 @@
 
 ---
 
+### 2026-05-11 — Sheets バックフィル・4週トレンド実データ・フッター／一覧の日時
+
+- **やったこと**
+  - **`src/update_trend_chart.py`（新規）**  
+    Shopify / Meta / Google Ads から過去 N 週を取り、`report.trend_chart`（`labels` / `sales` / `ad_spend` / `roas`）を API 実データで上書き。
+  - **`.github/workflows/pages.yml`**  
+    Google 広告取得の直後に `update_trend_chart.py --weeks 4 --allow-partial` を実行（失敗時も `continue-on-error` で後続継続）。  
+    **`reports_index.json` の `generated_at`** を **UTC ではなく `Asia/Tokyo`** で記録（一覧ページの「生成日時」が日本時間と一致するように修正）。
+  - **`src/backfill_sheets.py`（新規）**  
+    `--start-date` / `--end-date`（ともに月曜）または `--weeks` で過去週をループし、`fetch_shopify` → `fetch_meta` → `fetch_google_ads` → `append_to_sheets` を実行。  
+    **`--spreadsheet-id` / `--sheet-name`** で本番以外（検証用スプレッドシート）にも書き込み可能（`.env` の ID を書き換えなくてよい）。
+  - **`src/append_to_sheets.py`（修正）**
+    - 週列の重複判定を **2 行目の「期間」** で行う（従来は 1 行目の「生成日時」で誤判定し、短時間のバックフィルで同じ列に上書きされる不具合があった）。
+    - **生成日時**を **`Asia/Tokyo`** で記録。
+    - **`ws.resize`** で書き込み列・行が足りないときにグリッド拡張（`Range exceeds grid limits` / 列 BE 以降で失敗する問題の対策）。新規作成タブは列 **400** 確保。
+  - **`src/templates/weekly_report.html.j2`**  
+    売上・広告費推移チャートの **ROAS 右軸（`y1`）を `min: 0.5` / `max: 5.0`** に変更。
+  - **`src/generate_report.py`**  
+    HTML 生成時に **フッター文言**を実データ向けにし、**`footer.generated_at` をその時点の JST** で必ず上書き（JSON に古い「サンプル」表記が残っても HTML は正しい表記になる）。
+  - **`src/data/sample_report.json`**  
+    フッター文言を上記に合わせ、`generated_at` はプレースホルダ扱い。
+
+- **運用メモ**
+  - **週次 cron**: `cron: '0 0 * * 1'` は **月曜 00:00 UTC ＝ 月曜 09:00 JST**（GitHub Actions はスケジュールが UTC 基準）。
+  - **一覧の古い `generated_at`**（修正前に追記された行）は JSON 上は自動では直らない。必要なら手修正、または該当週を再デプロイで同 `slug` を上書き。
+
+- **次にやること（目安）**
+  - 本番 Sheets への過去期間バックフィルが未完了なら、修正後の `append_to_sheets` で再実行 or `build/backfill/report_*.json` があれば `append_to_sheets` のみ再投入。
+  - [docs/ROADMAP.md](./ROADMAP.md) の **フェーズ10** / **フェーズ7**。
+
+---
+
 ### 2026-05-08 — チェックポイント（フェーズ8・9 実装・LLM 運用の区切り）
 
 - **やったこと（この区切りまで）**
