@@ -18,7 +18,8 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import gspread
@@ -164,7 +165,7 @@ def build_row(report: dict) -> list:
     google_cpc = _strip_money(google_cpc_str)
     google_cvr = _strip_pct(google_cvr_str)
 
-    now_jst = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    now_jst = datetime.now(ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d %H:%M JST")
 
     return [
         # 管理情報
@@ -267,7 +268,8 @@ def main() -> int:
 
     # 行データ生成
     row = build_row(report)
-    period = row[0]
+    # 列の重複判定は「週の期間」で行う（生成日時 row[0] は同一実行内で分単位一致しうる）
+    period_key = row[1]
 
     # Sheets 認証
     try:
@@ -288,7 +290,8 @@ def main() -> int:
     try:
         ws = spreadsheet.worksheet(args.sheet_name)
     except gspread.exceptions.WorksheetNotFound:
-        ws = spreadsheet.add_worksheet(title=args.sheet_name, rows=len(HEADER) + 2, cols=60)
+        # 週次バックフィルで数十〜百列必要になる。狭いグリッドだと BE 列以降で 400 になる。
+        ws = spreadsheet.add_worksheet(title=args.sheet_name, rows=len(HEADER) + 10, cols=400)
         print(f"info: シート '{args.sheet_name}' を新規作成しました")
 
     # ────────────────────────────────────────────────────────────────
@@ -296,10 +299,7 @@ def main() -> int:
     #   A列      = 指標名（ラベル列）
     #   B列以降  = 週ごとのデータ列（新しい週 = 新しい列）
     #
-    #   行1: 期間
-    #   行2: 売上（円）
-    #   行3: 広告費合計（円）
-    #   ...
+    #   HEADER 順: 行1=生成日時, 行2=期間, 行3=売上（円）, 行4=広告費合計（円）, ...
     # ────────────────────────────────────────────────────────────────
     existing = ws.get_all_values()
     row_count = len(HEADER)
@@ -313,25 +313,32 @@ def main() -> int:
         print("info: A列（指標ラベル）を書き込みました")
         existing = ws.get_all_values()
 
-    # 既存データ列から同一期間を探す（1行目 = 期間行）
+    # 既存データ列から同一期間を探す（HEADER の2行目 = 期間）
     # 列 B 以降（インデックス 1 以降）を検索
-    period_row = existing[0] if existing else []
+    period_row = existing[1] if len(existing) > 1 else []
     match_col_idx = None  # 0-indexed (0=A, 1=B, ...)
     for col_i, cell_val in enumerate(period_row):
         if col_i == 0:
             continue  # A列はラベル列なのでスキップ
-        if cell_val == period:
+        if cell_val == period_key:
             match_col_idx = col_i
             break
 
     # 書き込む列を決定：一致あり → 上書き、なし → 次の空き列
     if match_col_idx is not None:
         write_col = match_col_idx + 1  # gspread は 1-indexed
-        print(f"info: 既存列（{gspread.utils.rowcol_to_a1(1, write_col)[:-1]} 列）を上書きします: {period}")
+        print(f"info: 既存列（{gspread.utils.rowcol_to_a1(1, write_col)[:-1]} 列）を上書きします: {period_key}")
     else:
         # 次の空き列 = period_row の長さ + 1（A列が既にあるので最低 2）
         write_col = max(len(period_row) + 1, 2)
-        print(f"info: 新規列（{gspread.utils.rowcol_to_a1(1, write_col)[:-1]} 列）に追記します: {period}")
+        print(f"info: 新規列（{gspread.utils.rowcol_to_a1(1, write_col)[:-1]} 列）に追記します: {period_key}")
+
+    # 既存シートのグリッドが狭いと「Range exceeds grid limits」になる。書き込み列まで拡張する。
+    target_rows = max(ws.row_count, row_count + 5)
+    target_cols = max(ws.col_count, write_col + 20)
+    if ws.row_count < target_rows or ws.col_count < target_cols:
+        ws.resize(rows=target_rows, cols=target_cols)
+        print(f"info: シートを拡張しました rows={target_rows} cols={target_cols}", file=sys.stderr)
 
     # 書き込み：各値を縦に並べる
     col_data = [[v] for v in row]  # row の各要素を 1 行ずつに変換

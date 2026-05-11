@@ -68,6 +68,28 @@ jobs:
             --out  build/report_merged.json
         continue-on-error: true   # Google API 失敗時もレポート生成を継続
 
+      # ── 過去4週トレンドをAPI実データで更新 ─────────────────────────────
+      - name: 売上・広告費 推移（過去4週）を更新
+        env:
+          SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SHOPIFY_API_VERSION: ${{ secrets.SHOPIFY_API_VERSION }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+          GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_CUSTOMER_ID }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+        run: |
+          python3 src/update_trend_chart.py \
+            --base build/report_merged.json \
+            --out  build/report_merged.json \
+            --weeks 4 \
+            --allow-partial
+        continue-on-error: true   # トレンド更新失敗時もレポート生成を継続
+
       # ── Google Sheets にデータ追記（週次蓄積）────────────────────────────
       - name: Google Sheets に週次データを追記
         env:

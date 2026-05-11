@@ -31,18 +31,41 @@ python3 src/fetch_meta.py --base build/report_with_shopify.json --out build/repo
 # 3. Google 広告データ取得（.env に GOOGLE_ADS_* が必要）
 python3 src/fetch_google_ads.py --base build/report_merged.json --out build/report_merged.json
 
-# 4. Google Sheets に週次列を追記（任意・.env に GOOGLE_SHEETS_SPREADSHEET_ID と認証情報）
+# 4. 売上・広告費 推移（過去4週）をAPI実データで更新
+python3 src/update_trend_chart.py --base build/report_merged.json --out build/report_merged.json --weeks 4 --allow-partial
+
+# 5. Google Sheets に週次列を追記（任意・.env に GOOGLE_SHEETS_SPREADSHEET_ID と認証情報）
 python3 src/append_to_sheets.py --base build/report_merged.json
 
-# 5. LLM で改善アクションを生成（任意・`ANTHROPIC_API_KEY` または `OPENAI_API_KEY`。CI と同様にフォールバックするなら --soft-fail）
+# 6. LLM で改善アクションを生成（任意・`ANTHROPIC_API_KEY` または `OPENAI_API_KEY`。CI と同様にフォールバックするなら --soft-fail）
 python3 src/generate_actions.py --base build/report_merged.json --out build/report_merged.json --soft-fail
 
-# 6. HTML 生成
+# 7. HTML 生成
 python3 src/generate_report.py -i build/report_merged.json -o build/report.html
 
-# 7. Slack 通知（任意・公開 URL と .env の SLACK_WEBHOOK_URL）
+# 8. Slack 通知（任意・公開 URL と .env の SLACK_WEBHOOK_URL）
 # python3 src/post_slack.py --base build/report_merged.json --report-url "https://<pages>/<週スラッグ>/"
 ```
+
+### Google Sheets への過去履歴バックフィル
+
+過去1年分などの履歴を一括投入する場合は、通常の週次処理とは分けて `backfill_sheets.py` を使います。古い週から順に、Shopify → Meta → Google → Sheets 追記を実行します。同じ期間列が既にある場合は `append_to_sheets.py` 側で上書きされます。
+
+```bash
+# 実行内容の確認のみ
+python3 src/backfill_sheets.py --weeks 52 --dry-run
+
+# 過去52週をSheetsへ投入
+python3 src/backfill_sheets.py --weeks 52 --sleep-seconds 1 --continue-on-error
+
+# 検証用スプレッドシートへ投入（.envを書き換えない）
+python3 src/backfill_sheets.py --weeks 4 --spreadsheet-id <検証用Spreadsheet ID> --sheet-name 週次データ --continue-on-error
+
+# 期間を明示する場合（どちらも月曜日）
+python3 src/backfill_sheets.py --start-date 2025-05-12 --end-date 2026-05-04 --continue-on-error
+```
+
+広告API取得を一時的に避けたい場合は `--skip-ads`、Sheets書き込み前にJSON生成だけ確認したい場合は `--skip-sheets` を付けます。
 
 ### HTML のみ生成（テスト用）
 
