@@ -86,7 +86,10 @@ def build_trend_chart(
     google_customer_id = os.environ.get("GOOGLE_ADS_CUSTOMER_ID", "").strip().replace("-", "")
 
     host = fetch_shopify._normalize_shop_host(shop_raw)
-    api_version = os.environ.get("SHOPIFY_API_VERSION", fetch_shopify.DEFAULT_API_VERSION).strip()
+    api_version = (
+        os.environ.get("SHOPIFY_API_VERSION", fetch_shopify.DEFAULT_API_VERSION).strip()
+        or fetch_shopify.DEFAULT_API_VERSION
+    )
     shop_session = fetch_shopify._session(shop_token)
     shop_base = fetch_shopify._rest_base(host, api_version)
     tz_name, _currency = fetch_shopify.fetch_shop_timezone_and_currency(shop_session, shop_base)

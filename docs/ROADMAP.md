@@ -24,7 +24,7 @@
 | **7** | **異常値検知**（閾値・先週比）とレポート内アラート | 🔲 後回し | アラート文言がデータ駆動。**次の候補**: フェーズ10（データ実装）との前後は運用優先で決める |
 | **8** | **LLM（Claude または OpenAI）** で改善アクション3件を生成し JSON/HTML に反映 | ✅ 完了 | `src/generate_actions.py`。既定 OpenAI（両キー時）。`temperature` は送らない（`gpt-5.5` 等の制約）。**2026-05-11** GitHub Actions・HTML 反映まで確認済み。`--soft-fail` 可 |
 | **9** | **Slack Incoming Webhook** で URL とサマリー投稿 | ✅ 完了 | `src/post_slack.py`・`SLACK_WEBHOOK_URL`。Pages デプロイ直後に通知。未設定時はスキップ |
-| **10** | **Shopify スコープ追加**（`read_reports` / `read_customer_events`）でセッション数・CV率を本物データに差し替え | 🔲 未着手（次の大きな実装候補） | セッション数・CV率が N/A／サンプル由来 → 実数値 |
+| **10** | **ShopifyQL + `read_reports`**（GraphQL `shopifyqlQuery`、Admin API **2025-10+**）でセッション数・CV率（注文÷セッション）を実数化 | ✅ 実装済（**要**: アプリに `read_reports` を追加し **再インストール／トークン再発行**、Secrets の `SHOPIFY_API_VERSION` が 2025-10 未満なら更新） | `fetch_shopify.py` の `FROM sessions SHOW sessions …`。`read_customer_events` はセッション集計には不要 |
 
 ---
 

@@ -34,7 +34,7 @@ SHOP = SHOP.removeprefix("https://").removeprefix("http://").rstrip("/")
 CLIENT_ID = os.environ.get("SHOPIFY_CLIENT_ID", "").strip()
 CLIENT_SECRET = os.environ.get("SHOPIFY_CLIENT_SECRET", "").strip()
 REDIRECT_URI = "http://localhost:3000/callback"
-SCOPES = "read_all_orders,read_analytics,read_customers,read_orders"
+SCOPES = "read_all_orders,read_analytics,read_customers,read_orders,read_reports"
 
 _result: dict = {}
 _nonce = secrets.token_hex(16)

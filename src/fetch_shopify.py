@@ -17,7 +17,8 @@ import requests
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_API_VERSION = os.environ.get("SHOPIFY_API_VERSION", "2025-01")
+# ShopifyQL の `shopifyqlQuery` に合わせ 2025-10 以降を既定にする（未設定時）
+DEFAULT_API_VERSION = "2025-10"
 
 
 def _jp_weekday(d: date) -> str:
@@ -62,6 +63,21 @@ def _next_page_url(link_header: str | None) -> str | None:
             if url.startswith("<") and url.endswith(">"):
                 return url[1:-1]
     return None
+
+
+def _admin_api_version_tuple(api_version: str) -> tuple[int, int] | None:
+    m = re.fullmatch(r"(\d{4})-(\d{2})", api_version.strip())
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2))
+
+
+def _supports_shopifyql_admin_query(api_version: str) -> bool:
+    """GraphQL の `shopifyqlQuery` は Admin API 2025-10 以降。"""
+    t = _admin_api_version_tuple(api_version)
+    if t is None:
+        return True
+    return t >= (2025, 10)
 
 
 def _normalize_shop_host(raw: str) -> str:
@@ -128,21 +144,37 @@ def fetch_sessions_shopifyql(
     date_from: date,
     date_to: date,
 ) -> int | None:
-    """ShopifyQL analyticsReport でセッション数を取得する。
+    """ShopifyQL（GraphQL `shopifyqlQuery`）でセッション数を集計する。
 
-    read_analytics スコープが必要。取得不可（プラン制限・スコープ不足・パースエラー）の場合は None を返す。
+    Admin API **2025-10 以降**と **`read_reports`** スコープが必要
+    （`read_analytics` のみでは取得できないことがあります）。
+
+    取得不可時は None（呼び出し側ではセッション・CV率を N/A 表示）。
     """
+    if not _supports_shopifyql_admin_query(api_version):
+        print(
+            "warning: セッション数は GraphQL の shopifyqlQuery が必要です。"
+            "SHOPIFY_API_VERSION を **2025-10 以降**にしてください（例: 2025-10）。",
+            file=sys.stderr,
+        )
+        return None
+
     gql_url = f"https://{host}/admin/api/{api_version}/graphql.json"
-    query_str = f"FROM sessions SINCE {date_from.isoformat()} UNTIL {date_to.isoformat()}"
+    # ShopifyQL: FROM と SHOW が必須（https://shopify.dev/docs/api/shopifyql）
+    query_str = (
+        "FROM sessions\n"
+        "  SHOW sessions\n"
+        f"  SINCE {date_from.isoformat()} UNTIL {date_to.isoformat()}"
+    )
     graphql_query = """
-    query($qs: String!) {
-      analyticsReport(queryString: $qs) {
-        parseError
+    query SessionAgg($qs: String!) {
+      shopifyqlQuery(query: $qs) {
+        parseErrors
         tableData {
-          unformattedData {
-            columnNames
-            rowData
+          columns {
+            name
           }
+          rows
         }
       }
     }
@@ -166,38 +198,64 @@ def fetch_sessions_shopifyql(
         print(f"warning: セッション数 GraphQL エラー: {body['errors']}", file=sys.stderr)
         return None
 
-    ar = (body.get("data") or {}).get("analyticsReport") or {}
-    if ar.get("parseError"):
-        print(f"warning: ShopifyQL パースエラー: {ar['parseError']}", file=sys.stderr)
-        return None
-
-    table = (ar.get("tableData") or {}).get("unformattedData") or {}
-    columns: list[str] = table.get("columnNames") or []
-    rows: list[list] = table.get("rowData") or []
-
-    session_col_candidates = ["sessions", "Sessions", "total_sessions", "session_count"]
-    idx: int | None = None
-    for candidate in session_col_candidates:
-        if candidate in columns:
-            idx = columns.index(candidate)
-            break
-
-    if idx is None:
+    sq = (body.get("data") or {}).get("shopifyqlQuery")
+    if sq is None:
         print(
-            f"warning: セッション数列が見つかりません（列: {columns}）、スキップします",
+            "warning: GraphQL が shopifyqlQuery を返していません。"
+            "API バージョンと read_reports スコープ・再インストールを確認してください。",
             file=sys.stderr,
         )
         return None
 
-    total = 0
-    for row in rows:
-        try:
-            val = row[idx]
-            total += int(float(str(val))) if val is not None else 0
-        except (IndexError, ValueError, TypeError):
-            pass
+    parse_errors = sq.get("parseErrors") or []
+    if parse_errors:
+        print(f"warning: ShopifyQL の parseErrors: {parse_errors}", file=sys.stderr)
+        return None
 
-    return total if rows else None
+    table_data = sq.get("tableData") or {}
+    rows_raw = table_data.get("rows")
+    if rows_raw is None:
+        rows: list[Any] = []
+    elif isinstance(rows_raw, list):
+        rows = rows_raw
+    else:
+        rows = []
+
+    metric_keys = ("sessions", "Sessions", "total_sessions", "session_count")
+    total = 0
+    parsed = False
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        val: Any = None
+        for key in metric_keys:
+            if key in row:
+                val = row[key]
+                break
+        if val is None:
+            lk = {k.lower(): k for k in row}
+            for key in metric_keys:
+                kl = key.lower()
+                if kl in lk:
+                    val = row[lk[kl]]
+                    break
+        if val is None:
+            continue
+        try:
+            total += int(round(float(str(val))))
+            parsed = True
+        except (ValueError, TypeError):
+            continue
+
+    if not parsed:
+        if rows:
+            print(
+                "warning: セッション数列を rows から解釈できませんでした、スキップします",
+                file=sys.stderr,
+            )
+        return None
+
+    return total
 
 
 def _money_decimal(order: dict[str, Any]) -> Decimal:

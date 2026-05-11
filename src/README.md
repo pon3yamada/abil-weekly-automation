@@ -2,14 +2,14 @@
 
 週次レポート自動化の **Python コード**を置く場所です。
 
-## 現状（フェーズ9まで完了・フェーズ7は後回し）
+## 現状（フェーズ10コード完了・フェーズ7は後回し）
 
 | ファイル | 役割 |
 |---|---|
 | `data/sample_report.json` | レポート1本分のベース JSON（ルートキー `report`） |
 | `templates/weekly_report.html.j2` | Jinja2 テンプレート（Tailwind CSS + Chart.js） |
 | `generate_report.py` | JSON を読み HTML を書き出す。フッターの `generated_at` は**生成時点の JST**で上書き、`disclaimer` は実データ向けの固定文言に更新 |
-| `fetch_shopify.py` | Shopify Admin API で注文集計 → `report.shopify` / `report.summary.sales` を更新 |
+| `fetch_shopify.py` | Shopify の注文集計 → `report.shopify` / `report.summary.sales`。セッション数は GraphQL **`shopifyqlQuery`**（ShopifyQL `FROM sessions SHOW sessions …`）。**`read_reports`** と Admin API **2025-10 以降**が必要。足りない場合はセッション・CV率は N/A |
 | `fetch_meta.py` | Meta Marketing API でインサイト取得 → `report.meta_ads`（指標 + キャンペーン別）を更新 |
 | `fetch_google_ads.py` | Google Ads REST API v20 で指標取得 → `report.google_ads`（指標 + キャンペーン別）を更新。さらに `report.summary.ad_spend` / `report.summary.mer` を実データで更新 |
 | `update_trend_chart.py` | 過去 N 週を Shopify / Meta / Google から取得し、`report.trend_chart`（推移グラフ用）を更新。CI では過去4週（`pages.yml`） |
@@ -78,7 +78,7 @@ python3 src/generate_report.py -i src/data/sample_report.json -o build/report.ht
 
 ### Shopify → JSON マージ → HTML
 
-カスタムアプリの **Admin API アクセストークン**に、少なくとも `read_orders` と `read_customers`（既存顧客比率用 GraphQL）を付与してください。
+カスタムアプリの **Admin API アクセストークン**に、少なくとも `read_orders`（または `read_all_orders`）・`read_customers`（既存顧客比率用 GraphQL）を付与してください。**セッション数・CV率**を出すには追加で **`read_reports`** が必要です（[`shopify.app.toml`](../shopify.app.toml) を deploy し、ストア側でスコープを再承認してトークンを取り直す）。**`SHOPIFY_API_VERSION`** は未設定時 **2025-10**（ShopifyQL 用）。CI の Secret が **2025-10 未満**なら更新してください。
 
 ```bash
 python3 src/fetch_shopify.py --merge-into src/data/sample_report.json -o build/report.json
@@ -90,7 +90,7 @@ python3 src/generate_report.py -i build/report.json -o build/report.html
 
 ## GitHub Pages（週次デプロイ）
 
-**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → （任意）**LLM で `report.actions` を更新** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → Pages デプロイ → （任意）**Slack に URL 通知**。改善アクション用に **`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`** のほか、`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER`・`GENERATE_ACTIONS_SOFT_FAIL`（ワークフローでは `--soft-fail` が付与済み）を Repository secrets で渡せます。Slack は `SLACK_WEBHOOK_URL`。未設定のキーはスキップされます。
+**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → （任意）**LLM で `report.actions` を更新** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → Pages デプロイ → （任意）**Slack に URL 通知**。Shopify の **セッション取得**には Secret の **`SHOPIFY_API_VERSION` を 2025-10 以降**にし、トークンに **`read_reports`** を含める必要があります（空の場合はコード既定の 2025-10 が使われます）。改善アクション用に **`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`** のほか、`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER`・`GENERATE_ACTIONS_SOFT_FAIL`（ワークフローでは `--soft-fail` が付与済み）を Repository secrets で渡せます。Slack は `SLACK_WEBHOOK_URL`。未設定のキーはスキップされます。
 
 GitHub 上では **Settings → Pages → Build and deployment** の **Source** を **GitHub Actions** にしてください。カスタムドメインを使う場合は同画面で設定します。
 
