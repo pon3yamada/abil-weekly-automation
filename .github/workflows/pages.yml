@@ -187,6 +187,7 @@ jobs:
       - name: Slack に週次レポート URL を投稿
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL_FUMIE: ${{ secrets.SLACK_WEBHOOK_URL_FUMIE }}
         run: |
           BASE="${{ steps.deployment.outputs.page_url }}"
           SLUG="${{ env.WEEK_SLUG }}"
@@ -194,4 +195,11 @@ jobs:
           python3 src/post_slack.py \
             --base build/report_merged.json \
             --report-url "$REPORT_URL"
+
+          if [ -n "$SLACK_WEBHOOK_URL_FUMIE" ]; then
+            python3 src/post_slack.py \
+              --base build/report_merged.json \
+              --report-url "$REPORT_URL" \
+              --webhook-url "$SLACK_WEBHOOK_URL_FUMIE"
+          fi
         continue-on-error: true
