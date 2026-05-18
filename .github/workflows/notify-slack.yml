@@ -1,0 +1,69 @@
+# 週次レポートの Slack 通知（毎週月曜 7:00 JST / 日曜 22:00 UTC）
+# Deploy Weekly Report（月曜 0:01 JST）で生成済みのレポートを通知する
+name: Notify Slack Weekly Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 22 * * 0'  # 毎週月曜 07:00 JST（日曜 22:00 UTC）
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 依存インストール
+        run: python3 -m pip install -q -r src/requirements.txt
+
+      - name: 最新レポートスラッグを取得
+        run: |
+          python3 - <<'EOF'
+          import json, os
+
+          idx_path = "src/data/reports_index.json"
+          reports = json.loads(open(idx_path).read())
+          if not reports:
+              print("ERROR: reports_index.json にエントリがありません")
+              raise SystemExit(1)
+
+          # slug の辞書順で最新（260504-260510 形式）
+          latest = sorted(reports, key=lambda r: r.get("slug", ""), reverse=True)[0]
+          slug = latest["slug"]
+          period = latest.get("period", "")
+          overall_score = latest.get("overall_score", "—")
+          score_subtitle = latest.get("score_subtitle", "")
+
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"WEEK_SLUG={slug}\n")
+              f.write(f"PERIOD_RANGE={period}\n")
+              f.write(f"OVERALL_SCORE={overall_score}\n")
+              f.write(f"SCORE_SUBTITLE={score_subtitle}\n")
+          print(f"最新スラッグ: {slug} / {period} / スコア: {overall_score}")
+          EOF
+
+      - name: Slack に週次レポート URL を投稿
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL_FUMIE: ${{ secrets.SLACK_WEBHOOK_URL_FUMIE }}
+        run: |
+          REPORT_URL="https://tools.abil.shop/${{ env.WEEK_SLUG }}/"
+          python3 src/post_slack.py \
+            --report-url "$REPORT_URL" \
+            --period "${{ env.PERIOD_RANGE }}" \
+            --overall-score "${{ env.OVERALL_SCORE }}" \
+            --score-subtitle "${{ env.SCORE_SUBTITLE }}"
+
+          if [ -n "$SLACK_WEBHOOK_URL_FUMIE" ]; then
+            python3 src/post_slack.py \
+              --report-url "$REPORT_URL" \
+              --period "${{ env.PERIOD_RANGE }}" \
+              --overall-score "${{ env.OVERALL_SCORE }}" \
+              --score-subtitle "${{ env.SCORE_SUBTITLE }}" \
+              --webhook-url "$SLACK_WEBHOOK_URL_FUMIE"
+          fi
+        continue-on-error: true

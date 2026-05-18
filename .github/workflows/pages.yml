@@ -1,11 +1,12 @@
 # Shopify データ取得 → レポート HTML 生成 → GitHub Pages デプロイ
-# 手動実行（workflow_dispatch）または毎週月曜 9:00 JST（00:00 UTC）に自動実行
+# 手動実行（workflow_dispatch）または毎週月曜 0:01 JST（日曜 15:01 UTC）に自動実行
+# Slack 通知は別ワークフロー（notify-slack.yml / 月曜 7:00 JST）
 name: Deploy Weekly Report
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1'  # 毎週月曜 09:00 JST
+    - cron: '1 15 * * 0'  # 毎週月曜 00:01 JST（日曜 15:01 UTC）
 
 permissions:
   contents: write   # レポートファイルとインデックスを repo にコミットするため
@@ -184,12 +185,24 @@ jobs:
           d = datetime.now(ZoneInfo("Asia/Tokyo"))
           now_jst = f"{d.year}年{d.month}月{d.day}日 {d.hour:02d}:{d.minute:02d}"
 
+          # overall_score と score_subtitle を merged JSON から取得
+          try:
+              merged = json.loads(open("build/report_merged.json").read())
+              rep = merged.get("report") or {}
+              overall_score = rep.get("overall_score") or "—"
+              score_subtitle = rep.get("score_subtitle") or ""
+          except Exception:
+              overall_score = "—"
+              score_subtitle = ""
+
           # 重複を防ぐ（同じスラッグなら上書き）
           reports = [r for r in reports if r.get("slug") != slug]
           reports.append({
               "slug": slug,
               "period": period,
               "generated_at": now_jst,
+              "overall_score": overall_score,
+              "score_subtitle": score_subtitle,
           })
 
           open(idx_path, "w").write(json.dumps(reports, ensure_ascii=False, indent=2) + "\n")
@@ -223,22 +236,4 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Slack に週次レポート URL を投稿
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_URL_FUMIE: ${{ secrets.SLACK_WEBHOOK_URL_FUMIE }}
-        run: |
-          BASE="${{ steps.deployment.outputs.page_url }}"
-          SLUG="${{ env.WEEK_SLUG }}"
-          REPORT_URL="${BASE%/}/${SLUG}/"
-          python3 src/post_slack.py \
-            --base build/report_merged.json \
-            --report-url "$REPORT_URL"
-
-          if [ -n "$SLACK_WEBHOOK_URL_FUMIE" ]; then
-            python3 src/post_slack.py \
-              --base build/report_merged.json \
-              --report-url "$REPORT_URL" \
-              --webhook-url "$SLACK_WEBHOOK_URL_FUMIE"
-          fi
-        continue-on-error: true
+      # Slack 通知は notify-slack.yml（月曜 7:00 JST）に分離
