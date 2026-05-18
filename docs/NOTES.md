@@ -13,6 +13,32 @@
 - メモ:
 ```
 
+### 2026-05-18 — Slack 通知タイミングをレポート生成から分離
+
+- **やったこと**
+  - **`pages.yml` スケジュール変更**  
+    cron を `0 0 * * 1`（月曜 0:00 UTC = 9:00 JST）から `1 15 * * 0`（日曜 15:01 UTC = 月曜 0:01 JST）に変更。  
+    深夜 0:00 UTC 帯は GitHub Actions の cron 実行が混雑しやすく遅延が起きるため、その時間帯を外した。
+  - **`pages.yml` から Slack 通知ステップを削除**  
+    Slack 投稿は新しい独立ワークフローに移管した。
+  - **`pages.yml` の `reports_index.json` エントリ拡張**  
+    各レポートのエントリに `overall_score` と `score_subtitle` を保存するよう変更。  
+    Slack 通知ワークフローがこれを参照することで、スコアを別ファイルから取得しなくて済む。
+  - **`.github/workflows/notify-slack.yml`（新規）**  
+    cron `0 22 * * 0`（日曜 22:00 UTC = 月曜 7:00 JST）で動作する Slack 通知専用ワークフロー。  
+    `reports_index.json` から slug 辞書順で最新エントリを取得し、`overall_score` / `score_subtitle` / `period` を引数として `post_slack.py` を呼ぶ。  
+    `SLACK_WEBHOOK_URL_FUMIE` が設定されていれば追加チャンネルにも投稿。
+  - **生成からSlack通知まで約7時間のバッファ確保**  
+    0:01 JST 生成 → 7:00 JST 通知 の設計により、生成ジョブが多少遅れても通知に間に合う。
+
+- **設計メモ**
+  - Slack 通知ワークフローは `--base` でレポート JSON を渡さず、`reports_index.json` に保存したメタデータだけで完結させた。これにより、生成済みのビルドアーティファクトに依存しない疎結合な設計になっている。
+  - 旧 `post_slack.py` の `--base sample_report.json` 参照（ダミーデータを使う不正確な呼び出し）を廃止。
+
+- **コミット**: `cee8c90`
+
+---
+
 ### 2026-05-11 — フェーズ7（異常値アラート・総合スコア自動計算）実装
 
 - **やったこと**
