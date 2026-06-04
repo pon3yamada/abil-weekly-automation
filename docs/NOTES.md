@@ -229,6 +229,7 @@ python3 src/patch_sheet_shopify_sessions.py \
 
 - **ローカル**
   - `.env`: `GOOGLE_SHEETS_CREDENTIALS_FILE`（JSON パス）または `GOOGLE_SHEETS_CREDENTIALS`（JSON 文字列）、`GOOGLE_SHEETS_SPREADSHEET_ID`
+  - Service Account JSON の置き場（2026-06-04）: `~/.config/abil-weekly-automation/google-sheets-service-account.json`（旧 `~/Downloads/abil-495119-....json` から移動）
   - `python3 src/append_to_sheets.py --base build/report_merged.json`
 
 - **スプレッドシート側の手編集**

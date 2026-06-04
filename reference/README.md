@@ -15,8 +15,8 @@
 ブラウザでファイルを開くか:
 
 ```bash
-open /Users/tsuyoshiyamada/Documents/ai-workbench/work/abil-weekly-automation/reference/abil-weekly-report.html
-open /Users/tsuyoshiyamada/Documents/ai-workbench/work/abil-weekly-automation/reference/report-automation-flow.html
+open /Users/tsuyoshiyamada/ai-workbench/work/abil-weekly-automation/reference/abil-weekly-report.html
+open /Users/tsuyoshiyamada/ai-workbench/work/abil-weekly-automation/reference/report-automation-flow.html
 ```
 
 ## surge.sh で再デプロイするとき
@@ -24,12 +24,12 @@ open /Users/tsuyoshiyamada/Documents/ai-workbench/work/abil-weekly-automation/re
 図解用のデプロイスクリプトは、学習用リポジトリ `personal-visual-explainers` 側にあります。**HTML はこのプロジェクトの絶対パス**を渡してください。
 
 ```bash
-bash /Users/tsuyoshiyamada/Documents/ai-workbench/learning/personal-visual-explainers/.claude/skills/creating-visual-explainers/scripts/deploy-diagram.sh \
-  /Users/tsuyoshiyamada/Documents/ai-workbench/work/abil-weekly-automation/reference/abil-weekly-report.html \
+bash /Users/tsuyoshiyamada/ai-workbench/learning/personal-visual-explainers/.claude/skills/creating-visual-explainers/scripts/deploy-diagram.sh \
+  /Users/tsuyoshiyamada/ai-workbench/work/abil-weekly-automation/reference/abil-weekly-report.html \
   abil-weekly-report
 
-bash /Users/tsuyoshiyamada/Documents/ai-workbench/learning/personal-visual-explainers/.claude/skills/creating-visual-explainers/scripts/deploy-diagram.sh \
-  /Users/tsuyoshiyamada/Documents/ai-workbench/work/abil-weekly-automation/reference/report-automation-flow.html \
+bash /Users/tsuyoshiyamada/ai-workbench/learning/personal-visual-explainers/.claude/skills/creating-visual-explainers/scripts/deploy-diagram.sh \
+  /Users/tsuyoshiyamada/ai-workbench/work/abil-weekly-automation/reference/report-automation-flow.html \
   report-automation-flow
 ```
 
