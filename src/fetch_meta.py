@@ -7,7 +7,8 @@ import argparse
 import json
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import requests
@@ -332,8 +333,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # 期間計算
-    today = date.today()
+    # 期間計算（GitHub Actions は UTC で動くため JST 基準の日付を使う）
+    today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
     if args.since and args.until:
         since_cur = args.since
         until_cur = args.until

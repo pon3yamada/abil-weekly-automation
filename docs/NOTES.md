@@ -8,6 +8,47 @@
 ### YYYY-MM-DD
 
 - やったこと:
+```
+
+---
+
+### 2026-06-08 — タイムゾーンずれバグ修正・過去3週レポート再生成
+
+- **バグ原因**
+  - `fetch_meta.py` / `fetch_google_ads.py` / `update_trend_chart.py` が `date.today()` / `datetime.now().date()` で週を計算していた。
+  - GitHub Actions は UTC で動作するため、cron `1 15 * * 0`（日曜 15:01 UTC = 月曜 0:01 JST）実行時は UTC 日付が**日曜**になり、`_reporting_week_monday` が **1週前**を返していた。
+  - `fetch_shopify.py` は店舗 TZ（Asia/Tokyo）で anchor を取得しており正しかったため、同一レポート内に異なる週のデータが混在した。
+
+- **影響範囲**
+  - cron を `0 0 * * 1`（Mon 09:00 JST）→ `1 15 * * 0`（Mon 00:01 JST）に変更した **commit `cee8c90`（2026-05-18）以降の自動生成3週**が対象。
+  - `weekly_report_260518-260524`：Meta/Google が実際は 5/11-5/17 のデータ
+  - `weekly_report_260525-260531`：Meta/Google が実際は 5/18-5/24 のデータ
+  - `weekly_report_260601-260607`：Meta/Google が実際は 5/25-5/31 のデータ
+  - Google Sheets の広告費・CV・CPA・CPC・CVR・ROAS・MER 行も同様にずれていた。
+
+- **修正内容**
+  - `src/fetch_meta.py`：`from zoneinfo import ZoneInfo` 追加、`today = datetime.now(ZoneInfo("Asia/Tokyo")).date()`
+  - `src/fetch_google_ads.py`：同上
+  - `src/update_trend_chart.py`：`datetime.now(ZoneInfo("Asia/Tokyo")).date()`
+  - `src/patch_sheet_ads.py`（新規）：過去週の正しい広告データで Sheets を上書き
+  - `src/regenerate_past_reports.py`（新規）：過去週の完全パイプラインを再実行して HTML 再生成
+
+- **実施した修正**
+  - Sheets パッチ：`python3 src/patch_sheet_ads.py --start-date 2026-05-18 --end-date 2026-06-01` → DA・DB・DC 列を上書き
+  - HTML 再生成：`python3 src/regenerate_past_reports.py --start-date 2026-05-18 --end-date 2026-06-01` → 3週分を再生成
+  - スコア変化：260601-260607 が **D → C** に修正（正しい広告費 ¥68,673 / MER 23.1%）
+
+- **次回からの確認ポイント**
+  - Actions ログの `[Meta] 当週:` / `[Google] 当週:` が Shopify の期間表示と一致しているか確認する。
+
+---
+
+### 元のテンプレート例
+
+```
+### YYYY-MM-DD
+
+- やったこと:
 - 次にやること:
 - ブロッカー:
 - メモ:

@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from pathlib import Path
 
@@ -177,7 +178,8 @@ def main() -> int:
     parser.add_argument("--allow-partial", action="store_true", help="一部API失敗時も0扱いで出力する")
     args = parser.parse_args()
 
-    anchor = date.fromisoformat(args.anchor_date) if args.anchor_date else datetime.now().date()
+    # GitHub Actions は UTC で動くため JST 基準の日付を使う
+    anchor = date.fromisoformat(args.anchor_date) if args.anchor_date else datetime.now(ZoneInfo("Asia/Tokyo")).date()
     doc = _load_json(args.base)
     report = doc.setdefault("report", {})
     report["trend_chart"] = build_trend_chart(
