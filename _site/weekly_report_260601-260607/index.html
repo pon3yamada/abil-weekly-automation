@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <title>ABiL 週次レポート</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23DB4F2E'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>A</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              orange: '#DB4F2E',
+              'orange-light': '#F26B4A',
+              'orange-pale': '#FEF0EC',
+              navy: '#19448e',
+              'navy-light': '#2255A8',
+              'navy-pale': '#EBF0F9',
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans JP"', '"Hiragino Sans"', '"Yu Gothic UI"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', sans-serif; }
+    .gradient-header {
+      background: linear-gradient(135deg, #19448e 0%, #2255A8 50%, #DB4F2E 100%);
+    }
+    .card-hover {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .metric-up { color: #10B981; }
+    .metric-down { color: #EF4444; }
+    .metric-neutral { color: #6B7280; }
+    .progress-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: #E5E7EB;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 1s ease;
+    }
+    .tab-btn {
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: #DB4F2E;
+      color: white;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .action-card {
+      border-left: 4px solid;
+      transition: transform 0.15s ease;
+    }
+    .action-card:hover {
+      transform: translateX(4px);
+    }
+    .alert-badge {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <div class="gradient-header text-white">
+    <div class="max-w-5xl mx-auto px-4 py-8">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">週次レポート</span>
+            <span class="text-white/70 text-sm">自動生成</span>
+          </div>
+          <h1 class="text-3xl font-black tracking-tight">ABiL 週次レポート</h1>
+          <p class="text-white/80 mt-1 text-sm">2026年6月1日（月）〜 2026年6月7日（日）</p>
+        </div>
+        <div class="text-right">
+          <div class="text-white/70 text-xs mb-1">総合スコア</div>
+          <div class="text-5xl font-black">D</div>
+          <div class="text-white/70 text-xs mt-1">要対応です。主要指標が大きく悪化しています</div>
+        </div>
+      </div>
+
+      
+      <div class="mt-5 bg-white/15 border border-white/30 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span class="alert-badge text-xl">⚠️</span>
+        <div>
+          <span class="font-bold text-sm">アラート：</span>
+          <span class="text-sm text-white/90">Meta広告：CPA が先週比で 57.7% 上昇しています。 対象キャンペーンの配信面・クリエイティブ・検索語句を確認し、悪化要因の大きいものから調整してください。</span>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-brand-orange rounded-full inline-block"></span>
+        全体サマリー
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+          <div class="text-xs text-gray-500 font-medium mb-1">販売合計（今週）</div>
+          <div class="text-3xl font-black text-gray-900">¥298,040</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="metric-up text-sm font-bold">▲ 18.2%</span>
+            <span class="text-gray-400 text-xs">先週比</span>
+          </div>
+          <div class="progress-bar mt-3">
+            <div class="progress-fill bg-brand-orange" style="width: 25%"></div>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">月間目標（¥150万）の 25%</div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+          <div class="text-xs text-gray-500 font-medium mb-1">広告費合計（今週）</div>
+          <div class="text-3xl font-black text-gray-900">¥102,320</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="metric-up text-sm font-bold">▼ 17.9%</span>
+            <span class="text-gray-400 text-xs">先週比</span>
+          </div>
+          <div class="progress-bar mt-3">
+            <div class="progress-fill bg-brand-navy" style="width: 25%"></div>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">月間予算（¥40万）の 25%消化</div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-sm card-hover">
+          <div class="text-xs text-gray-500 font-medium mb-1">売上に対する広告費率</div>
+          <div class="text-3xl font-black text-gray-900">34.3%</div>
+          <div class="flex items-center gap-1 mt-2">
+            <span class="metric-up text-gray-500 text-sm font-bold">▼ 先週 41.8%</span>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <div class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-green-400 to-brand-orange" style="width: 69%"></div>
+            </div>
+            <span class="text-xs text-yellow-600 font-bold">注意</span>
+          </div>
+          <div class="text-xs text-gray-400 mt-1">目標: 30%以下</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-brand-navy rounded-full inline-block"></span>
+        Shopify（サイトパフォーマンス）
+      </h2>
+      <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div class="bg-brand-navy-pale border-b border-blue-100 px-5 py-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6m-3-3h6"/></svg>
+          <span class="text-brand-navy font-bold text-sm">Shopify ストア</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-gray-100">
+          
+          <div class="p-5">
+            <div class="text-xs text-gray-500 mb-1">注文件数</div>
+            <div class="text-2xl font-black text-gray-900">35</div>
+            <div class="text-xs metric-up font-bold mt-1">▲ 52.2% 先週比</div>
+          </div>
+          
+          <div class="p-5">
+            <div class="text-xs text-gray-500 mb-1">週次売上（税込）</div>
+            <div class="text-2xl font-black text-gray-900">¥298,040</div>
+            <div class="text-xs metric-up font-bold mt-1">▲ 18.2% 先週比</div>
+          </div>
+          
+          <div class="p-5">
+            <div class="text-xs text-gray-500 mb-1">平均注文単価</div>
+            <div class="text-2xl font-black text-gray-900">¥7,475</div>
+            <div class="text-xs metric-down font-bold mt-1">▼ 25.3% 先週比</div>
+          </div>
+          
+          <div class="p-5">
+            <div class="text-xs text-gray-500 mb-1">既存顧客による注文の割合</div>
+            <div class="text-2xl font-black text-gray-900">20.6%</div>
+            <div class="text-xs metric-up font-bold mt-1">▲ 11.9pt 先週比</div>
+          </div>
+          
+          <div class="p-5">
+            <div class="text-xs text-gray-500 mb-1">セッション数</div>
+            <div class="text-2xl font-black text-gray-900">2,474</div>
+            <div class="text-xs metric-down font-bold mt-1">▼ 71.7% 先週比</div>
+          </div>
+          
+          <div class="p-5">
+            <div class="text-xs text-gray-500 mb-1">CV率（注文/セッション）</div>
+            <div class="text-2xl font-black text-gray-900">1.4%</div>
+            <div class="text-xs metric-up font-bold mt-1">▲ 1.2pt 先週比</div>
+          </div>
+          
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-brand-orange rounded-full inline-block"></span>
+        広告チャネル別パフォーマンス
+      </h2>
+
+      <div class="flex gap-2 mb-4">
+        <button class="tab-btn active text-sm font-bold px-4 py-2 rounded-full border border-brand-orange" onclick="switchTab('meta', this)">
+          Meta広告
+        </button>
+        <button class="tab-btn text-sm font-bold px-4 py-2 rounded-full border border-gray-200 text-gray-600" onclick="switchTab('google', this)">
+          Google広告
+        </button>
+        <button class="tab-btn text-sm font-bold px-4 py-2 rounded-full border border-gray-200 text-gray-600" onclick="switchTab('compare', this)">
+          比較
+        </button>
+      </div>
+
+      <div id="tab-meta" class="tab-content active">
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div class="bg-blue-50 border-b border-blue-100 px-5 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                <span class="text-white text-xs font-black">f</span>
+              </div>
+              <span class="font-bold text-sm text-blue-800">Meta広告（Facebook / Instagram）</span>
+            </div>
+            <span class="text-xs bg-red-100 text-red-600 font-bold px-2 py-1 rounded-full"></span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-gray-100">
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">広告費</div>
+              <div class="text-2xl font-black text-gray-900">¥25,822</div>
+              <div class="text-xs metric-up font-bold mt-1">▼ 5.4% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">購入（売上）</div>
+              <div class="text-2xl font-black text-gray-900">¥66,330</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 37.7% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">注文数（CV）</div>
+              <div class="text-2xl font-black text-gray-900">6件</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 40.0% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">コンバージョン単価（CPA）</div>
+              <div class="text-2xl font-black text-gray-900">¥4,303</div>
+              <div class="text-xs metric-down font-bold mt-1">▲ 57.7% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">クリック数</div>
+              <div class="text-2xl font-black text-gray-900">990</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 25.3% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">CPC（クリック単価）</div>
+              <div class="text-2xl font-black text-gray-900">¥26</div>
+              <div class="text-xs metric-down font-bold mt-1">▲ 26.7% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">CVR</div>
+              <div class="text-2xl font-black text-gray-900">0.61%</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 0.15pt 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">ROAS</div>
+              <div class="text-2xl font-black text-brand-orange">2.57×</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 1.33 先週比</div>
+            </div>
+            
+          </div>
+          
+          <div class="border-t border-gray-100 px-5 py-4">
+            <div class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wide">キャンペーン別</div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-left text-gray-400 border-b border-gray-100">
+                    <th class="pb-2 pr-3 font-semibold">キャンペーン</th>
+                    <th class="pb-2 px-3 font-semibold text-right">広告費</th>
+                    <th class="pb-2 px-3 font-semibold text-right">CV</th>
+                    <th class="pb-2 px-3 font-semibold text-right">CPA</th>
+                    <th class="pb-2 pl-3 font-semibold text-right">ROAS</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  
+                  <tr class="hover:bg-gray-50">
+                    <td class="py-2 pr-3 text-gray-700 max-w-[180px] truncate" title="251206_ギフト-売上キャンペーン">251206_ギフト-売上キャンペーン</td>
+                    <td class="py-2 px-3 text-right text-gray-800 font-medium tabular-nums">¥18,791</td>
+                    <td class="py-2 px-3 text-right text-gray-800 tabular-nums">6件</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">¥3,131</td>
+                    <td class="py-2 pl-3 text-right font-bold text-brand-orange tabular-nums">3.53×</td>
+                  </tr>
+                  
+                  <tr class="hover:bg-gray-50">
+                    <td class="py-2 pr-3 text-gray-700 max-w-[180px] truncate" title="260516_niko and...ウェブトラフィック向けカスタムキャンペーン キャンペーン">260516_niko and...ウェブトラフィック向けカスタムキャンペーン キャンペーン</td>
+                    <td class="py-2 px-3 text-right text-gray-800 font-medium tabular-nums">¥7,031</td>
+                    <td class="py-2 px-3 text-right text-gray-800 tabular-nums">0件</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">—</td>
+                    <td class="py-2 pl-3 text-right font-bold text-brand-orange tabular-nums">—</td>
+                  </tr>
+                  
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <div id="tab-google" class="tab-content">
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div class="bg-green-50 border-b border-green-100 px-5 py-3 flex items-center gap-2">
+            <div class="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center bg-white border border-gray-200">
+              <span class="text-xs font-black" style="background: linear-gradient(135deg, #4285F4, #EA4335, #FBBC04, #34A853); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">G</span>
+            </div>
+            <span class="font-bold text-sm text-green-800">Google広告</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-gray-100">
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">広告費</div>
+              <div class="text-2xl font-black text-gray-900">¥76,498</div>
+              <div class="text-xs metric-up font-bold mt-1">▼ 21.4% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">購入（売上）</div>
+              <div class="text-2xl font-black text-gray-900">¥183,250</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 23.9% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">注文数（CV）</div>
+              <div class="text-2xl font-black text-gray-900">17件</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 34.6% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">コンバージョン単価（CPA）</div>
+              <div class="text-2xl font-black text-gray-900">¥4,499</div>
+              <div class="text-xs metric-down font-bold mt-1">▲ 20.1% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">クリック数</div>
+              <div class="text-2xl font-black text-gray-900">8,929</div>
+              <div class="text-xs metric-up font-bold mt-1">▲ 117.0% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">CPC（クリック単価）</div>
+              <div class="text-2xl font-black text-gray-900">¥8</div>
+              <div class="text-xs metric-up font-bold mt-1">▼ 63.8% 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">CVR</div>
+              <div class="text-2xl font-black text-gray-900">0.19%</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 0.37pt 先週比</div>
+            </div>
+            
+            <div class="p-5">
+              <div class="text-xs text-gray-500 mb-1">ROAS</div>
+              <div class="text-2xl font-black text-brand-orange">2.40×</div>
+              <div class="text-xs metric-down font-bold mt-1">▼ 0.08 先週比</div>
+            </div>
+            
+          </div>
+          
+          <div class="border-t border-gray-100 px-5 py-4">
+            <div class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wide">キャンペーン別</div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-left text-gray-400 border-b border-gray-100">
+                    <th class="pb-2 pr-3 font-semibold">キャンペーン</th>
+                    <th class="pb-2 px-3 font-semibold text-right">広告費</th>
+                    <th class="pb-2 px-3 font-semibold text-right">CV</th>
+                    <th class="pb-2 px-3 font-semibold text-right">CPA</th>
+                    <th class="pb-2 px-3 font-semibold text-right">CVR</th>
+                    <th class="pb-2 pl-3 font-semibold text-right">ROAS</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  
+                  <tr class="hover:bg-gray-50">
+                    <td class="py-2 pr-3 text-gray-700 max-w-[180px] truncate" title="Sales-Performance Max-1">Sales-Performance Max-1</td>
+                    <td class="py-2 px-3 text-right text-gray-800 font-medium tabular-nums">¥49,554</td>
+                    <td class="py-2 px-3 text-right text-gray-800 tabular-nums">12件</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">¥4,129</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">0.14%</td>
+                    <td class="py-2 pl-3 text-right font-bold text-green-700 tabular-nums">2.26×</td>
+                  </tr>
+                  
+                  <tr class="hover:bg-gray-50">
+                    <td class="py-2 pr-3 text-gray-700 max-w-[180px] truncate" title="サウナギフト検索広告">サウナギフト検索広告</td>
+                    <td class="py-2 px-3 text-right text-gray-800 font-medium tabular-nums">¥24,682</td>
+                    <td class="py-2 px-3 text-right text-gray-800 tabular-nums">5件</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">¥4,936</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">3.01%</td>
+                    <td class="py-2 pl-3 text-right font-bold text-green-700 tabular-nums">2.89×</td>
+                  </tr>
+                  
+                  <tr class="hover:bg-gray-50">
+                    <td class="py-2 pr-3 text-gray-700 max-w-[180px] truncate" title="ABiL_ショッピング広告">ABiL_ショッピング広告</td>
+                    <td class="py-2 px-3 text-right text-gray-800 font-medium tabular-nums">¥2,261</td>
+                    <td class="py-2 px-3 text-right text-gray-800 tabular-nums">0件</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">—</td>
+                    <td class="py-2 px-3 text-right text-gray-600 tabular-nums">0.00%</td>
+                    <td class="py-2 pl-3 text-right font-bold text-green-700 tabular-nums">—</td>
+                  </tr>
+                  
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <div id="tab-compare" class="tab-content">
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div class="bg-gray-50 border-b border-gray-100 px-5 py-3">
+            <span class="font-bold text-sm text-gray-700">Meta vs Google 比較</span>
+          </div>
+          <div class="p-5">
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>ROAS</span>
+                  <span>Meta: 2.57× / Google: 2.40×</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                  <span class="text-xs w-12 text-right text-blue-600 font-bold">Meta</span>
+                  <div class="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-blue-500" style="width: 100%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-blue-600">2.57×</span>
+                </div>
+                <div class="flex gap-2 items-center mt-1">
+                  <span class="text-xs w-12 text-right text-green-600 font-bold">Google</span>
+                  <div class="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-green-500" style="width: 93%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-green-600">2.40×</span>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>CPC（低いほど良い）</span>
+                  <span>Meta: ¥26 / Google: ¥8</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                  <span class="text-xs w-12 text-right text-blue-600 font-bold">Meta</span>
+                  <div class="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-blue-400" style="width: 100%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-blue-600">¥26</span>
+                </div>
+                <div class="flex gap-2 items-center mt-1">
+                  <span class="text-xs w-12 text-right text-green-600 font-bold">Google</span>
+                  <div class="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-green-400" style="width: 33%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-green-600">¥8</span>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>CVR</span>
+                  <span>Meta: 0.61% / Google: 0.19%</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                  <span class="text-xs w-12 text-right text-blue-600 font-bold">Meta</span>
+                  <div class="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-blue-400" style="width: 100%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-blue-600">0.61%</span>
+                </div>
+                <div class="flex gap-2 items-center mt-1">
+                  <span class="text-xs w-12 text-right text-green-600 font-bold">Google</span>
+                  <div class="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
+                    <div class="h-full rounded-full bg-green-400" style="width: 31%"></div>
+                  </div>
+                  <span class="text-xs font-bold text-green-600">0.19%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-red-500 rounded-full inline-block"></span>
+        異常値・注意アラート
+      </h2>
+      <div class="space-y-3">
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-red-100 text-red-700 border-red-200">要対応</span>
+                <span class="text-xs text-gray-400">Meta広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">Meta広告のCPAが悪化しています</div>
+              <p class="text-sm text-gray-600">CPA が先週比で 57.7% 上昇しています。</p>
+              <p class="text-xs text-gray-400 mt-2">コンバージョン単価（CPA）: ¥4,303 / ▲ 57.7% 先週比</p>
+              <p class="text-sm text-gray-700 mt-2">対象キャンペーンの配信面・クリエイティブ・検索語句を確認し、悪化要因の大きいものから調整してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-red-100 text-red-700 border-red-200">要対応</span>
+                <span class="text-xs text-gray-400">Meta広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">Meta広告のROASが悪化しています</div>
+              <p class="text-sm text-gray-600">ROAS が先週比で 1.33 低下しています。</p>
+              <p class="text-xs text-gray-400 mt-2">ROAS: 2.57× / ▼ 1.33 先週比</p>
+              <p class="text-sm text-gray-700 mt-2">対象キャンペーンの配信面・クリエイティブ・検索語句を確認し、悪化要因の大きいものから調整してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">Google広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">Google広告のCPAが悪化しています</div>
+              <p class="text-sm text-gray-600">CPA が先週比で 20.1% 上昇しています。</p>
+              <p class="text-xs text-gray-400 mt-2">コンバージョン単価（CPA）: ¥4,499 / ▲ 20.1% 先週比</p>
+              <p class="text-sm text-gray-700 mt-2">対象キャンペーンの配信面・クリエイティブ・検索語句を確認し、悪化要因の大きいものから調整してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">Meta広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">Meta広告のCPCが悪化しています</div>
+              <p class="text-sm text-gray-600">CPC が先週比で 26.7% 上昇しています。</p>
+              <p class="text-xs text-gray-400 mt-2">CPC（クリック単価）: ¥26 / ▲ 26.7% 先週比</p>
+              <p class="text-sm text-gray-700 mt-2">対象キャンペーンの配信面・クリエイティブ・検索語句を確認し、悪化要因の大きいものから調整してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+          <div class="flex items-start gap-3">
+            <span class="text-xl">⚠️</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-black px-2 py-0.5 rounded-full border bg-yellow-100 text-yellow-700 border-yellow-200">注意</span>
+                <span class="text-xs text-gray-400">全体</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">売上トレンドが前週から急落しています</div>
+              <p class="text-sm text-gray-600">過去4週グラフの直近売上が前週比 25.8% 減少しています。</p>
+              <p class="text-xs text-gray-400 mt-2">売上・広告費 推移（過去4週）</p>
+              <p class="text-sm text-gray-700 mt-2">週次の一時要因か、広告・サイト側の継続的な悪化かを切り分けてください。</p>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+    
+
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-1 h-6 bg-brand-orange rounded-full inline-block"></span>
+        売上・広告費 推移（過去4週）
+      </h2>
+      <div class="bg-white rounded-2xl shadow-sm p-5">
+        <canvas id="trendChart" height="100"></canvas>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+        <span class="w-1 h-6 bg-brand-orange rounded-full inline-block"></span>
+        🤖 AIによる改善アクション3選
+      </h2>
+      <p class="text-xs text-gray-400 mb-4">今週のデータをもとに自動生成されたアドバイスです</p>
+
+      <div class="space-y-4">
+        
+        <div class="action-card bg-white rounded-2xl shadow-sm p-5" style="border-left-color: #EF4444;">
+          <div class="flex items-start gap-3">
+            <span class="text-2xl">🚨</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">緊急</span>
+                <span class="text-xs text-gray-400">Meta広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">0CVのトラフィック施策を止め、売上キャンペーンへ配分を寄せる</div>
+              <p class="text-sm text-gray-600">Meta広告はCPAが<span class="font-bold text-brand-orange">先週比57.7%上昇</span>し、ROASも2.57×へ低下しています。特に「260516_niko and...ウェブトラフィック向けカスタムキャンペーン」は¥7,031消化で0CVのため、停止または大幅縮小し、6CV・ROAS3.53×の「251206_ギフト-売上キャンペーン」へ予算を寄せてください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="action-card bg-white rounded-2xl shadow-sm p-5" style="border-left-color: #EF4444;">
+          <div class="flex items-start gap-3">
+            <span class="text-2xl">🔍</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-full">緊急</span>
+                <span class="text-xs text-gray-400">Google広告</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">クリック急増に対してCVRが低い配信面・検索語句を除外する</div>
+              <p class="text-sm text-gray-600">Google広告はクリック数が<span class="font-bold text-brand-orange">先週比117.0%増</span>の一方、CVRは0.19%まで低下しています。費用の大きい「Sales-Performance Max-1」はCVR0.14%・ROAS2.26×のため、低品質な配信面・検索語句・アセットを確認し、成果の良い「サウナギフト検索広告」（CVR3.01%、ROAS2.89×）へ配分を見直してください。</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="action-card bg-white rounded-2xl shadow-sm p-5" style="border-left-color: #F59E0B;">
+          <div class="flex items-start gap-3">
+            <span class="text-2xl">🛒</span>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-black bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">推奨</span>
+                <span class="text-xs text-gray-400">Shopify</span>
+              </div>
+              <div class="font-bold text-gray-900 mb-1">平均注文単価の下落をセット提案と購入導線で補う</div>
+              <p class="text-sm text-gray-600">注文件数は35件で先週比52.2%増ですが、平均注文単価は<span class="font-bold text-brand-orange">先週比25.3%低下</span>しています。売上効率を戻すため、ギフトセット・まとめ買い・送料無料ライン訴求など、客単価を上げる導線を商品ページとカート周辺に追加してください。</p>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </section>
+
+    <footer class="text-center text-xs text-gray-400 pb-8 pt-4 border-t border-gray-200">
+      <p>このレポートは自動生成されています。数値は Shopify および各広告プラットフォームのデータに基づきます。</p>
+      <p class="mt-1">ABiL Weekly Report • 生成日時: 2026年6月8日 01:18</p>
+    </footer>
+
+  </div>
+
+  <script>
+    function switchTab(tabName, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('active');
+        el.classList.add('text-gray-600');
+        el.classList.remove('text-white');
+      });
+      document.getElementById('tab-' + tabName).classList.add('active');
+      btn.classList.add('active');
+      btn.classList.remove('text-gray-600');
+    }
+
+    const trendLabels = ["5/4\u9031", "5/11\u9031", "5/18\u9031", "5/25\u9031\uff08\u4eca\u9031\uff09"];
+    const trendSales = [282240, 298240, 339830, 252180];
+    const trendAdSpend = [135582, 99568, 124667, 102320];
+    const trendRoas = [2.08, 3.0, 2.73, 2.46];
+
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: trendLabels,
+        datasets: [
+          {
+            label: '売上',
+            data: trendSales,
+            backgroundColor: 'rgba(219, 79, 46, 0.8)',
+            borderRadius: 6,
+            order: 2,
+          },
+          {
+            label: '広告費',
+            data: trendAdSpend,
+            backgroundColor: 'rgba(25, 68, 142, 0.7)',
+            borderRadius: 6,
+            order: 2,
+          },
+          {
+            label: 'ROAS（右軸）',
+            data: trendRoas,
+            type: 'line',
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderWidth: 3,
+            pointRadius: 5,
+            pointBackgroundColor: '#10B981',
+            fill: false,
+            tension: 0.4,
+            yAxisID: 'y1',
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              font: { family: 'Noto Sans JP', size: 11 },
+              usePointStyle: true,
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (context.dataset.yAxisID === 'y1') {
+                  return ` ROAS: ${context.parsed.y}×`;
+                }
+                return ` ${context.dataset.label}: ¥${context.parsed.y.toLocaleString()}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback: v => '¥' + (v / 10000).toFixed(0) + '万',
+              font: { size: 10 }
+            },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          y1: {
+            position: 'right',
+            ticks: {
+              callback: v => v + '×',
+              font: { size: 10 }
+            },
+            grid: { display: false },
+            min: 0.5,
+            max: 5.0,
+          },
+          x: {
+            ticks: { font: { size: 11 } },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  </script>
+  <!-- Password Gate -->
+  <div id="pw-gate" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4">
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:#DB4F2E">
+          <span class="text-white font-bold text-xl">A</span>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800">ABiL 週次レポート</h2>
+        <p class="text-sm text-gray-500 mt-1">パスワードを入力してください</p>
+      </div>
+      <div class="space-y-3">
+        <input id="pw-input" type="password" placeholder="パスワード"
+          class="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+          style="--tw-ring-color:#DB4F2E" autocomplete="current-password">
+        <p id="pw-error" class="text-red-500 text-sm text-center hidden">パスワードが違います</p>
+        <button id="pw-btn" class="w-full text-white rounded-lg px-4 py-3 text-sm font-bold transition-colors"
+          style="background:#DB4F2E">ログイン</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const HASH = '10bd0d13c822595f6995db0dc2c90b9ea38f0ce5e9c90cafa56a671529a6bb08';
+      const KEY = 'abil_report_auth';
+      const gate = document.getElementById('pw-gate');
+      if (sessionStorage.getItem(KEY) === HASH) { gate.remove(); return; }
+      async function sha256(s) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+      async function tryLogin() {
+        const pw = document.getElementById('pw-input').value;
+        const h = await sha256(pw);
+        if (h === HASH) { sessionStorage.setItem(KEY, HASH); gate.remove(); }
+        else { document.getElementById('pw-error').classList.remove('hidden'); document.getElementById('pw-input').value = ''; }
+      }
+      document.getElementById('pw-btn').addEventListener('click', tryLogin);
+      document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+    })();
+  </script>
+</body>
+</html>
