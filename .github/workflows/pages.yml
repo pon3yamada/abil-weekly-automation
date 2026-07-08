@@ -5,6 +5,11 @@ name: Deploy Weekly Report
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: 'コミット済みの _site をそのまま再デプロイする（データ取得・レポート生成をスキップ）'
+        type: boolean
+        default: false
   schedule:
     - cron: '1 15 * * 0'  # 毎週月曜 00:01 JST（日曜 15:01 UTC）
 
@@ -22,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +38,10 @@ jobs:
         run: python3 -m pip install -q -r src/requirements.txt
 
       # ── Shopify データ取得 ──────────────────────────────────────────────
+      # deploy_only 時はデータ取得〜レポート生成〜コミットをすべてスキップし、
+      # コミット済みの _site を再デプロイするだけにする（デプロイ失敗からの復旧用）
       - name: Shopify データ取得 → build/shopify_fragment.json
+        if: ${{ !inputs.deploy_only }}
         env:
           SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
@@ -45,6 +53,7 @@ jobs:
 
       # ── Meta 広告データ取得 ────────────────────────────────────────────
       - name: Meta 広告データ取得 → build/report_merged.json に追記
+        if: ${{ !inputs.deploy_only }}
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
@@ -56,6 +65,7 @@ jobs:
 
       # ── Google 広告データ取得 ──────────────────────────────────────────
       - name: Google 広告データ取得 → build/report_merged.json に追記
+        if: ${{ !inputs.deploy_only }}
         env:
           GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
           GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
@@ -71,6 +81,7 @@ jobs:
 
       # ── 過去4週トレンドをAPI実データで更新 ─────────────────────────────
       - name: 売上・広告費 推移（過去4週）を更新
+        if: ${{ !inputs.deploy_only }}
         env:
           SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
@@ -93,6 +104,7 @@ jobs:
 
       # ── Google Sheets にデータ追記（週次蓄積）────────────────────────────
       - name: Google Sheets に週次データを追記
+        if: ${{ !inputs.deploy_only }}
         env:
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
           GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
@@ -103,6 +115,7 @@ jobs:
 
       # ── 異常値・注意アラート（JSON の report.alert / report.alerts を更新）────
       - name: 異常値・注意アラートを生成 → build/report_merged.json
+        if: ${{ !inputs.deploy_only }}
         run: |
           python3 src/generate_alerts.py \
             --base build/report_merged.json \
@@ -110,6 +123,7 @@ jobs:
 
       # ── LLM: 改善アクション3件（JSON の report.actions を更新）──────────
       - name: LLM で改善アクションを生成 → build/report_merged.json
+        if: ${{ !inputs.deploy_only }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
@@ -133,6 +147,7 @@ jobs:
 
       # ── 週スラッグを決定 ───────────────────────────────────────────────
       - name: 週スラッグを決定（WEEK_SLUG 環境変数）
+        if: ${{ !inputs.deploy_only }}
         run: |
           python3 - <<'EOF'
           import json, os
@@ -161,6 +176,7 @@ jobs:
 
       # ── 個別レポート HTML 生成 ─────────────────────────────────────────
       - name: レポート HTML 生成
+        if: ${{ !inputs.deploy_only }}
         env:
           REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
         run: |
@@ -171,6 +187,7 @@ jobs:
 
       # ── reports_index.json を更新 ──────────────────────────────────────
       - name: reports_index.json に今週のエントリを追加
+        if: ${{ !inputs.deploy_only }}
         run: |
           python3 - <<'EOF'
           import json, os
@@ -210,6 +227,7 @@ jobs:
           EOF
 
       # ── トップページ（一覧）HTML 生成 ──────────────────────────────────
+      # deploy_only 時もコミット済みの reports_index.json から再生成できる
       - name: トップページ（レポート一覧）生成
         env:
           REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
@@ -220,10 +238,11 @@ jobs:
 
       # ── repo にコミット（レポートファイル + インデックスを永続化）────────
       - name: 新レポートを repo にコミット
+        if: ${{ !inputs.deploy_only }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f _site/${{ env.WEEK_SLUG }}/
+          git add -f _site/${{ env.WEEK_SLUG }}/ _site/index.html
           git add src/data/reports_index.json
           git diff --cached --quiet || git commit -m "report: ${{ env.WEEK_SLUG }}"
           git push
@@ -233,7 +252,51 @@ jobs:
         with:
           path: _site
 
+      # GitHub 側の一時エラー（Deployment failed, try again later. など）に備えて
+      # 1回だけ自動リトライする
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: デプロイ失敗時は60秒待って再試行
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      # ── 失敗時アラート（従来はデプロイ失敗に気づけず URL が 404 のままだった）──
+      - name: 失敗時に Slack へアラート
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL が未設定のためスキップします"
+            exit 0
+          fi
+          python3 - <<'EOF'
+          import json, os, urllib.request
+
+          run_url = (
+              f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
+              f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          )
+          text = (
+              ":rotating_light: *週次レポートのデプロイに失敗しました*\n"
+              "最新レポートの URL が 404 のままになっている可能性があります。\n"
+              f"・実行ログ: {run_url}\n"
+              "・復旧手順: Actions → Deploy Weekly Report → Run workflow で "
+              "`deploy_only=true` を指定して再デプロイ"
+          )
+          req = urllib.request.Request(
+              os.environ["SLACK_WEBHOOK_URL"],
+              data=json.dumps({"text": text}).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+          )
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(f"Slack 通知送信完了: {resp.status}")
+          EOF
 
       # Slack 通知は notify-slack.yml（月曜 7:00 JST）に分離

@@ -1,5 +1,6 @@
 # Meta システムユーザートークンの失効アラート
 # 毎日 09:00 JST（00:00 UTC）に実行し、残り 14/10/7/5/4/3/2/1 日のタイミングで Slack 通知
+# 失効後（残り0日以下）は再発行されるまで毎日通知する
 name: Meta Token Expiry Check
 
 on:
@@ -45,10 +46,10 @@ jobs:
 
           print(f"生成日: {generated}  経過: {elapsed}日  残り: {remaining}日", flush=True)
 
-          # 通知するタイミング（または強制通知フラグ）
+          # 通知するタイミング（または強制通知フラグ）。失効後（残り0日以下）は毎日通知する
           force = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
           notify_at = {14, 10, 7, 5, 4, 3, 2, 1}
-          if not force and remaining not in notify_at:
+          if not force and remaining not in notify_at and remaining > 0:
               print("通知タイミングではありません", flush=True)
               sys.exit(0)
           if force:
@@ -60,7 +61,11 @@ jobs:
               sys.exit(0)
 
           # 緊急度に応じた絵文字・色
-          if remaining <= 3:
+          if remaining <= 0:
+              emoji = "🚨"
+              color = "#EF4444"
+              urgency = "失効済み"
+          elif remaining <= 3:
               emoji = "🚨"
               color = "#EF4444"
               urgency = "緊急"
@@ -73,9 +78,13 @@ jobs:
               color = "#3B82F6"
               urgency = "お知らせ"
 
-          expire_date = generated.replace(year=generated.year + (1 if elapsed + remaining > 365 else 0))
           from datetime import timedelta
           expire_date = generated + timedelta(days=expires_days)
+
+          if remaining <= 0:
+              header_text = f"{emoji} [{urgency}] Meta トークンが失効しています（{-remaining} 日経過）"
+          else:
+              header_text = f"{emoji} [{urgency}] Meta トークンがあと {remaining} 日で失効します"
 
           payload = {
               "attachments": [
@@ -86,7 +95,7 @@ jobs:
                               "type": "header",
                               "text": {
                                   "type": "plain_text",
-                                  "text": f"{emoji} [{urgency}] Meta トークンがあと {remaining} 日で失効します",
+                                  "text": header_text,
                               },
                           },
                           {
