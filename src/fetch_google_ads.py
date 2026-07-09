@@ -19,7 +19,13 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 MICROS = 1_000_000
-GOOGLE_ADS_API_VERSION = "v20"
+# sunset 済みバージョンは 400 UNSUPPORTED_VERSION になるため、
+# 環境変数 GOOGLE_ADS_API_VERSION（GitHub Secrets/Variables）で切替できるようにする
+GOOGLE_ADS_API_VERSION = "v24"
+
+
+def _api_version() -> str:
+    return os.environ.get("GOOGLE_ADS_API_VERSION", "").strip() or GOOGLE_ADS_API_VERSION
 
 
 # ── 日付ユーティリティ ─────────────────────────────────────────────────────────
@@ -110,7 +116,7 @@ def fetch_metrics(customer_id: str, since: str, until: str) -> dict:
     )
 
     url = (
-        f"https://googleads.googleapis.com/{GOOGLE_ADS_API_VERSION}"
+        f"https://googleads.googleapis.com/{_api_version()}"
         f"/customers/{customer_id}/googleAds:search"
     )
     headers = {

@@ -12,6 +12,28 @@
 
 ---
 
+### 2026-07-08 — レポートURL 404・広告データ欠落の障害対応
+
+- **障害1: 最新レポート `weekly_report_260629-260705` が 404**
+  - 7/5 の `Deploy Weekly Report`（run 28746817784）で、レポート生成・コミットまで成功したが最後の `actions/deploy-pages@v4` が GitHub 側の一時エラー（`Deployment failed, try again later.`）で失敗。リトライが無く未デプロイのまま。
+  - `notify-slack.yml` はデプロイ成否と無関係に URL を投稿するため、404 の URL が Slack に流れた。
+  - 対策（`pages.yml`）: deploy-pages を失敗時60秒待って1回自動リトライ / 失敗時に Slack へアラート / `workflow_dispatch` に `deploy_only` 入力を追加（コミット済み `_site` をそのまま再デプロイして復旧できる）/ コミット対象に `_site/index.html` を追加（従来はトップページが repo 内で stale だった）。
+
+- **障害2: Google 広告データが 6月下旬から欠落**
+  - トークン失効ではない（OAuth リフレッシュは成功）。Google Ads API **v20 が sunset** となり、全リクエストが `400 UNSUPPORTED_VERSION`。`continue-on-error: true` のためワークフローは緑のまま気づけなかった。
+  - 対策: `src/fetch_google_ads.py` のバージョンを `v24` に更新。以後は環境変数 `GOOGLE_ADS_API_VERSION` で切替可能（次回 sunset 時はコード変更不要で Secrets/Variables から変更できる）。
+  - Google Ads API は約1年で sunset される。エラーに `UNSUPPORTED_VERSION` が出たらバージョンを上げること。
+
+- **障害3: Meta トークンが 2026-07-07 に失効**
+  - `token_expiry_check` は残り 14/10/7/5/4/3/2/1 日にのみ通知する仕様で、**失効後（残り0日以下）は一切通知されない**バグがあった → 失効後は再発行まで毎日「失効済み」アラートを送るよう修正。
+  - 再発行手順: Meta Business Suite → システムユーザー `abil_weekly-automation` → トークンを生成（アプリ `abil-weekly-report` / 60日）→ Secrets の `META_ACCESS_TOKEN` と `META_TOKEN_GENERATED_AT` を更新。
+
+- **復旧手順**
+  1. `deploy_only=true` で `Deploy Weekly Report` を実行 → コミット済みの 260629-260705 がデプロイされ 404 解消
+  2. Meta トークン再発行後、フル実行で 260629-260705 を完全データ（Meta+Google）で再生成
+
+---
+
 ### 2026-06-08 — タイムゾーンずれバグ修正・過去3週レポート再生成
 
 - **バグ原因**
@@ -359,7 +381,7 @@ python3 src/patch_sheet_shopify_sessions.py \
   - OAuth クライアント: `ABiL週次レポート - OAuth Web`（Google Cloud）
   - 広告アカウント（子）: `GOOGLE_ADS_CUSTOMER_ID=7645332705`
   - MCC: `GOOGLE_ADS_LOGIN_CUSTOMER_ID=7453809503`
-  - API バージョン: `v20`（`src/fetch_google_ads.py` の `GOOGLE_ADS_API_VERSION`）
+  - API バージョン: `v24`（`src/fetch_google_ads.py` の `GOOGLE_ADS_API_VERSION`。環境変数で上書き可。v20 は 2026年に sunset 済み → 2026-07-08 の項参照）
 
 ### 2026-05-08 — Meta 広告 API 連携（フェーズ4）完了
 
