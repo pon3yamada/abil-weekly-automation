@@ -1,6 +1,9 @@
 # Meta システムユーザートークンの失効アラート
 # 毎日 09:00 JST（00:00 UTC）に実行し、残り 14/10/7/5/4/3/2/1 日のタイミングで Slack 通知
 # 失効後（残り0日以下）は再発行されるまで毎日通知する
+#
+# 有効期限は Meta Graph API（debug_token）から実測で取得する。
+# META_TOKEN_GENERATED_AT + 60日 の日付計算は API が使えない場合のフォールバック。
 name: Meta Token Expiry Check
 
 on:
@@ -19,6 +22,7 @@ jobs:
     steps:
       - name: トークン残り日数を確認して必要なら Slack 通知
         env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_TOKEN_GENERATED_AT: ${{ secrets.META_TOKEN_GENERATED_AT }}
           META_TOKEN_EXPIRES_DAYS: "60"
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -26,25 +30,68 @@ jobs:
         run: |
           python3 - <<'EOF'
           import os, json, sys
-          from datetime import date, datetime
+          import urllib.request, urllib.parse
+          from datetime import date, datetime, timedelta
+          from zoneinfo import ZoneInfo
 
-          generated_str = os.environ.get("META_TOKEN_GENERATED_AT", "").strip()
-          if not generated_str:
-              print("META_TOKEN_GENERATED_AT が未設定のためスキップします", flush=True)
-              sys.exit(0)
+          JST = ZoneInfo("Asia/Tokyo")
+          today = datetime.now(JST).date()
 
-          try:
-              generated = date.fromisoformat(generated_str)
-          except ValueError:
-              print(f"日付フォーマットエラー: {generated_str}", flush=True)
-              sys.exit(1)
+          remaining = None
+          expire_date = None
+          generated = None
+          source = None  # "API実測" / "生成日から推定"
 
-          expires_days = int(os.environ.get("META_TOKEN_EXPIRES_DAYS", "60"))
-          today = date.today()
-          elapsed = (today - generated).days
-          remaining = expires_days - elapsed
+          # ── 優先: Graph API の debug_token で実際の有効期限を取得 ──────────
+          token = os.environ.get("META_ACCESS_TOKEN", "").strip()
+          if token:
+              try:
+                  qs = urllib.parse.urlencode({"input_token": token, "access_token": token})
+                  with urllib.request.urlopen(
+                      f"https://graph.facebook.com/v21.0/debug_token?{qs}", timeout=30
+                  ) as resp:
+                      data = json.load(resp).get("data") or {}
+                  if not data:
+                      raise RuntimeError("debug_token 応答に data がありません")
+                  expires_at = int(data.get("expires_at") or 0)
+                  is_valid = bool(data.get("is_valid"))
+                  if not is_valid:
+                      remaining = 0
+                      expire_date = today
+                      source = "API実測"
+                      print("API実測: トークンは無効（is_valid=false）", flush=True)
+                  elif expires_at == 0:
+                      print("API実測: トークンは無期限のため通知不要です", flush=True)
+                      sys.exit(0)
+                  else:
+                      expire_date = datetime.fromtimestamp(expires_at, JST).date()
+                      remaining = (expire_date - today).days
+                      source = "API実測"
+                      print(f"API実測: 失効日={expire_date}  残り={remaining}日", flush=True)
+              except SystemExit:
+                  raise
+              except Exception as exc:
+                  print(f"debug_token 呼び出し失敗（日付計算にフォールバック）: {exc}", flush=True)
 
-          print(f"生成日: {generated}  経過: {elapsed}日  残り: {remaining}日", flush=True)
+          # ── フォールバック: 生成日 + 有効日数から推定 ──────────────────────
+          if remaining is None:
+              generated_str = os.environ.get("META_TOKEN_GENERATED_AT", "").strip()
+              if not generated_str:
+                  print("META_TOKEN_GENERATED_AT が未設定のためスキップします", flush=True)
+                  sys.exit(0)
+
+              try:
+                  generated = date.fromisoformat(generated_str)
+              except ValueError:
+                  print(f"日付フォーマットエラー: {generated_str}", flush=True)
+                  sys.exit(1)
+
+              expires_days = int(os.environ.get("META_TOKEN_EXPIRES_DAYS", "60"))
+              elapsed = (today - generated).days
+              remaining = expires_days - elapsed
+              expire_date = generated + timedelta(days=expires_days)
+              source = "生成日から推定"
+              print(f"生成日: {generated}  経過: {elapsed}日  残り: {remaining}日", flush=True)
 
           # 通知するタイミング（または強制通知フラグ）。失効後（残り0日以下）は毎日通知する
           force = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
@@ -78,9 +125,6 @@ jobs:
               color = "#3B82F6"
               urgency = "お知らせ"
 
-          from datetime import timedelta
-          expire_date = generated + timedelta(days=expires_days)
-
           if remaining <= 0:
               header_text = f"{emoji} [{urgency}] Meta トークンが失効しています（{-remaining} 日経過）"
           else:
@@ -101,8 +145,7 @@ jobs:
                           {
                               "type": "section",
                               "fields": [
-                                  {"type": "mrkdwn", "text": f"*生成日*\n{generated}"},
-                                  {"type": "mrkdwn", "text": f"*失効日*\n{expire_date}"},
+                                  {"type": "mrkdwn", "text": f"*失効日（{source}）*\n{expire_date}"},
                                   {"type": "mrkdwn", "text": f"*残り日数*\n*{remaining} 日*"},
                                   {"type": "mrkdwn", "text": f"*対象アプリ*\nabil-weekly-report"},
                               ],
@@ -117,7 +160,7 @@ jobs:
                                       "2. `abil_weekly-automation` → *トークンを生成*\n"
                                       "3. アプリ: `abil-weekly-report` / 有効期限: *60日* を選択\n"
                                       "4. 新しいトークンを GitHub Secrets の `META_ACCESS_TOKEN` に更新\n"
-                                      "5. `META_TOKEN_GENERATED_AT` も今日の日付に更新"
+                                      "5. `META_TOKEN_GENERATED_AT` も今日の日付に更新（フォールバック用）"
                                   ),
                               },
                           },
@@ -126,7 +169,6 @@ jobs:
               ]
           }
 
-          import urllib.request
           req = urllib.request.Request(
               webhook_url,
               data=json.dumps(payload).encode("utf-8"),
