@@ -88,5 +88,12 @@
     "generated_at": "2026年7月27日 01:02",
     "overall_score": "A",
     "score_subtitle": "好調です。大きな異常は検知されていません"
+  },
+  {
+    "slug": "weekly_report_260727-260802",
+    "period": "2026年7月27日（月）〜 2026年8月2日（日）",
+    "generated_at": "2026年8月3日 01:00",
+    "overall_score": "D",
+    "score_subtitle": "要対応です。主要指標が大きく悪化しています"
   }
 ]
