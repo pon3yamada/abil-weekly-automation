@@ -3,3 +3,26 @@
 build/
 _site/
 __pycache__/
+
+# --- メディアの実体は Git に入れない（クラウドが正本、リポには台帳のみ） ---
+# 置き場と例外は AGENTS.md を参照。方針: abil-ai-ops/decisions/2026-08-14_media-out-of-repo.md
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.heic
+*.psd
+*.ai
+*.mp4
+*.mov
+*.m4a
+*.mp3
+*.pdf
+*.pptx
+*.xlsx
+*.docx
+*.key
+*.numbers
+*.pages
+*.zip
