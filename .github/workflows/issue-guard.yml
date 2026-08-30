@@ -1,0 +1,83 @@
+# Issue に「成功の定義」が書かれているかを、起票の入口によらず検査する。
+#
+# なぜ必要か:
+#   同じ検査を create-issue スキルが起票前に行っているが、そちらを通らない入口がある
+#   （GitHub Web / スマートフォン / Linear などの外部ツールからの同期）。
+#   入口を制限する代わりに、どの入口から入っても必ず通る GitHub 側に門番を置く。
+#
+# 判定ロジックの実体は pon3yamada/issue-guard（公開リポ）に 1 本だけ。ここには置かない。
+#
+# 落ちたとき: needs-goal ラベルが付き、何が足りないかがコメントで返る。
+#             本文を直して保存すると edited で再発火し、ラベルは自動で外れる。
+name: Issue Guard
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 検査する Issue 番号
+        required: true
+        type: string
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write   # needs-goal ラベルの付け外しとコメント投稿のため
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ゴール検査を実行
+        id: guard
+        uses: pon3yamada/issue-guard@v1
+        with:
+          issue-number: ${{ github.event.issue.number || inputs.issue_number }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 合格ならラベルを外し、不合格なら差し戻す
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NUM: ${{ github.event.issue.number || inputs.issue_number }}
+          OK: ${{ steps.guard.outputs.ok }}
+          DETAIL: ${{ steps.guard.outputs.detail }}
+        run: |
+          set -u
+
+          if [ "$OK" = "true" ]; then
+            gh issue edit "$NUM" --remove-label needs-goal 2>/dev/null || true
+            echo "合格。needs-goal が付いていれば外した"
+            exit 0
+          fi
+
+          # ラベルが無ければ作る（初回だけ効く）
+          gh label create needs-goal \
+            --color D93F0B \
+            --description "ゴール（成功の定義）が書かれていない" \
+            >/dev/null 2>&1 || true
+
+          # ★編集のたびにコメントを増やさない。
+          #   すでに needs-goal が付いている＝前回も落ちているので、ラベルだけ維持する。
+          ALREADY=$(gh issue view "$NUM" --json labels -q '[.labels[].name] | index("needs-goal") // "none"')
+
+          gh issue edit "$NUM" --add-label needs-goal
+
+          if [ "$ALREADY" != "none" ]; then
+            echo "不合格。すでに needs-goal が付いているのでコメントは追加しない"
+            exit 0
+          fi
+
+          {
+            echo "## ゴール検査に通りませんでした"
+            echo
+            echo '```'
+            printf '%s\n' "$DETAIL"
+            echo '```'
+            echo
+            echo "本文を直して保存すると、この検査が自動で回り直してラベルが外れます。"
+            echo
+            echo "型は loop-engineering の \`templates/issue.md\`。**成功の定義は「状態の文」で書く** —— "
+            echo "「〜を検討する」ではなく「〜が存在し、コマンド1本で〜が出る」の形。"
+          } | gh issue comment "$NUM" --body-file -
