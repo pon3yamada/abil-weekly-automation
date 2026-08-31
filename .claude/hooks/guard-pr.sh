@@ -4,7 +4,7 @@
 #
 # PR は人間がマージを判断する唯一の場所（認知がボトルネック）。
 #   - 本文は --body-file 必須（後から機械検証・保管できる形にする）
-#   - pr-body の必須節が揃っているか機械で確認（型: loop-engineering/templates/pr-body.md）
+#   - pr-body の必須節が揃っているか機械で確認（型: 同リポの .claude/pr-body.md）
 #   - check-goal.sh の出力がそのまま貼られているか（自己申告ではなく計測の証拠）
 #   - 土台検証（validate-*.sh 全部）が落ちている状態では PR を作らせない
 #   - 判定できないときは通す（フェイルオープン）
@@ -84,11 +84,16 @@ if [ -z "$BODY_FILE" ]; then
   cat >&2 <<'MSG'
 PR の本文は --body-file でファイルとして渡してください（--body の直書きは拒否します）。
 
-    gh pr create --title "..." --body-file /path/to/pr-body.md
+    cp .claude/pr-body.md /tmp/pr-body.md   # 型を複製して埋める
+    gh pr create --title "..." --body-file /tmp/pr-body.md
 
-本文の型: ~/ai-workbench/work/loop-engineering/templates/pr-body.md
+本文の型: このリポの .claude/pr-body.md（複製して埋める。正本は loop-engineering の templates/）
 必須節: 作ったもの / ゴールの計測結果（check-goal.sh の出力をそのまま貼る）/ 動作確認 /
         情報源の食い違い / 確認してほしい判断 / 未解決の論点（無い節は「なし」と書く）
+
+この拒否は「型を直して出し直せ」という差し戻しです。指示どおり直して同じコマンドを
+再実行してください。手動の PR 作成 URL に逃げないこと。PR ができていないのに
+TODO を完了にしないこと。
 MSG
   exit 2
 fi
@@ -98,7 +103,7 @@ case "$BODY_FILE" in /*) ;; *) BODY_FILE="$ROOT/$BODY_FILE" ;; esac
 BODY=$(cat "$BODY_FILE")
 MISSING=""
 
-# --- 2. 必須節（型: templates/pr-body.md。無い内容は「なし」と書けばよい）---
+# --- 2. 必須節（型: 同リポの .claude/pr-body.md。無い内容は「なし」と書けばよい）---
 for sec in "## 作ったもの" "## ゴールの計測結果" "## 動作確認" "## 情報源の食い違い" "## 確認してほしい判断" "## 未解決の論点"; do
   case "$BODY" in
     *"$sec"*) ;;
@@ -130,7 +135,11 @@ if [ -n "$MISSING" ]; then
     echo "PR の作成を拒否しました。以下を満たしてからやり直してください:"
     echo "$MISSING"
     echo
-    echo "雛形: ~/ai-workbench/work/loop-engineering/templates/pr-body.md"
+    echo "雛形: このリポの .claude/pr-body.md（cp .claude/pr-body.md /tmp/pr-body.md して埋める）"
+    echo
+    echo "この拒否は「型を直して出し直せ」という差し戻しです。上の指示どおり直して"
+    echo "同じコマンドを再実行してください。手動の PR 作成 URL に逃げないこと。"
+    echo "PR ができていないのに TODO を完了にしないこと。"
   } >&2
   exit 2
 fi

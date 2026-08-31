@@ -23,11 +23,29 @@
 #   - main / master にいるなら 終了コード 2 で拒否。stderr が AI への指示になる
 #   - 判定できないときは通す（フェイルオープン。門番が壊れて全作業が止まる方が害が大きい）
 #
-# 既知の限界（許容済み）:
+# 既知の限界（許容済み・2026-08-31 round2 で棚卸し）:
 #   - feature ブランチから `git push origin feature:main` 型の明示 refspec はすり抜ける
 #   - 人間がターミナルで直接叩く操作には効かない（AI のツール呼び出しのみ）
 #   - `git -C 別リポ push` もこのリポのブランチで判定する（フックは自リポしか知らない。
 #     別リポを対象にした操作が誤って止まったら、そのリポを開いたセッションでやり直す）
+#   - `git -C <path> push origin --delete x` は削除例外に入れず拒否する（誤拒否側）。
+#     例外の入口が `^git push` 形しか受け付けないため。削除は -C なしで実行する
+#   - main / master 自体の削除を止められるのは「main / master にいるとき」だけ。
+#     feature ブランチから `git push origin --delete main` は fall through して通る
+#     （round2 の棚卸しで発見・裁定は worklog 2026-08-31。塞ぐには構造変更が要る）
+#   - リモート名が main のとき（`git push main --delete x`）は削除例外を使わない
+#     （フェイルクローズ側。コマンド全文で main を探す設計の副作用）
+#   - **実行されない文字列としての `git push` にも発火する**（`echo "git push origin main"`・
+#     `rg -n 'git push' file` など）。手順を文書に書く作業が門番に止まる。判定を
+#     「実行されるコマンドか」に踏み込ませると素通しの穴になるので、拒否側に倒す
+#   - `=` を含むオプション付きの削除（`--force-with-lease=x:abc`）・非 ASCII の
+#     ブランチ名の削除は例外に入らず拒否する（REF の字種を絞っているため）
+#   - **削除しか含まないコマンドでも、複数行なら拒否する**（`git fetch` 改行
+#     `git push origin --delete x`）。混在 push を塞いだ代償。削除は 1 行で実行する
+#   - パイプを含む削除（`... --delete x | cat`）も同様に拒否する
+#
+# ★これらの限界は tools/guard-branch-cases.sh の「6. 既知の限界」節に**ケースとして
+#   固定**してある（loop-engineering）。挙動を変えたらケース表も同時に直すこと。
 #
 # ★リポ固有の素通し（特定リポ名を含むコマンドを通す等）をここに足さない。
 #   リポ名は変わる。旧名が残った素通しは無条件バイパスの穴になる
@@ -57,23 +75,40 @@ fi
 # この門番の目的は「main に直接コミット / push させない」こと。
 # マージ済みブランチを消す `git push origin --delete xxx` はそれに当たらないが、
 # 文字列に "git push" が含まれるため巻き込まれて拒否されていた（nagano で実測）。
-# ★判定はコマンド全文への完全一致で行う。部分一致で exit 0 すると、
-#   `git push origin -d feature/x main` や `git push --delete origin x && git push origin main`
-#   のような混在コマンドまで素通りする（2026-08-31 レビュー hinshitsu B1-1 で実測）。
-#   混在は fall through して main 判定で止まる。削除は単体コマンドで実行すればよい。
+#
+# ★例外に入れるのは「コマンド全体が削除 push 単体」のときだけ。文の区切り
+#   （改行・; ・&& ・|| ・パイプ）を含むコマンドは例外に入らず、fall through して
+#   main 判定で止める。行単位の grep で削除行 1 行だけを見て素通しすると、
+#   同じコマンドの次の行にある `git push origin main` がそのまま通る
+#   （2026-08-31 レビュー round2 hinshitsu B2-1 で 3 形とも rc=0 を実測）。
+#   削除したいときは単体コマンドで実行すればよい。
+#
+# ★main / master 自体の削除は止める。判定はコマンド全文を 1 つの正規表現で見る
+#   （裸の main|master と refs/heads/main の両形）。フラグ先行形
+#   `git push --delete origin main feature/x` の main 検査が行末アンカーだけだった
+#   ために素通りに退行し（round2 hinshitsu B2-2）、`refs/heads/main` 形は全形で
+#   素通っていた（同 W）。検査を 1 本にまとめて両方を塞ぐ。
 if ! printf '%s' "$CMD" | grep -q 'git commit'; then
-  REF='"?[A-Za-z0-9._/-]+"?'
-  # --delete / -d 形式（削除対象は複数可。main / master が混ざる場合は通さない）
-  if printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+(${REF}[[:space:]]+)?(--delete|-d)([[:space:]]+${REF})+[[:space:]]*\$"; then
-    printf '%s' "$CMD" | grep -qE '(--delete|-d)([[:space:]]+"?[A-Za-z0-9._/-]+"?)*[[:space:]]+"?(main|master)"?([[:space:]]|$)' || exit 0
-  fi
-  # `git push --delete origin xxx` の引数順（フラグが先）
-  if printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+(--delete|-d)[[:space:]]+${REF}([[:space:]]+${REF})+[[:space:]]*\$"; then
-    printf '%s' "$CMD" | grep -qE '[[:space:]]"?(main|master)"?[[:space:]]*$' || exit 0
-  fi
-  # コロン形式の削除: git push origin :feature/xxx（単体のみ）
-  if printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+${REF}([[:space:]]+:[A-Za-z0-9._/-]+)+[[:space:]]*\$"; then
-    printf '%s' "$CMD" | grep -qE ':"?(main|master)"?([[:space:]]|$)' || exit 0
+  # 非空行が 2 行以上ある、または文の区切り記号を含むコマンドは例外の対象外
+  NLINES=$(printf '%s\n' "$CMD" | grep -c '[^[:space:]]')
+  if [ "$NLINES" -le 1 ] && ! printf '%s' "$CMD" | grep -q '[;&|]'; then
+    REF='"?[A-Za-z0-9._/-]+"?'
+    IS_DELETE=0
+    # --delete / -d 形式（削除対象は複数可）: git push origin --delete x y
+    printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+(${REF}[[:space:]]+)?(--delete|-d)([[:space:]]+${REF})+[[:space:]]*$" && IS_DELETE=1
+    # フラグが先に来る引数順: git push --delete origin x y
+    printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+(--delete|-d)[[:space:]]+${REF}([[:space:]]+${REF})+[[:space:]]*$" && IS_DELETE=1
+    # コロン形式の削除: git push origin :feature/xxx
+    printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+${REF}([[:space:]]+:[A-Za-z0-9._/-]+)+[[:space:]]*$" && IS_DELETE=1
+    if [ "$IS_DELETE" = 1 ]; then
+      # main / master が引数のどこかに現れたら削除例外を使わない（fall through）。
+      # 語境界は 行頭 / 空白 / コロン / 引用符 のみ — feature/main-fix や
+      # feature/mainline は "/" が前に来るので一致しない（実測で確認した形）。
+      # 接頭辞は refs/heads/ と heads/ の両方を見る。git は `--delete heads/main` を
+      # refs/heads/main に展開して main を消すため（round3 hinshitsu W2 — 実 bare リポ
+      # への push で展開を目撃。新旧とも素通りしていた元からの穴）
+      printf '%s' "$CMD" | grep -qE '(^|[[:space:]]|:|")((refs/)?heads/)?(main|master)("|[[:space:]]|$)' || exit 0
+    fi
   fi
 fi
 
