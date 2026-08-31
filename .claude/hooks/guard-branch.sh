@@ -35,6 +35,17 @@
 #     （round2 の棚卸しで発見・裁定は worklog 2026-08-31。塞ぐには構造変更が要る）
 #   - リモート名が main のとき（`git push main --delete x`）は削除例外を使わない
 #     （フェイルクローズ側。コマンド全文で main を探す設計の副作用）
+#   - **実行されない文字列としての `git push` にも発火する**（`echo "git push origin main"`・
+#     `rg -n 'git push' file` など）。手順を文書に書く作業が門番に止まる。判定を
+#     「実行されるコマンドか」に踏み込ませると素通しの穴になるので、拒否側に倒す
+#   - `=` を含むオプション付きの削除（`--force-with-lease=x:abc`）・非 ASCII の
+#     ブランチ名の削除は例外に入らず拒否する（REF の字種を絞っているため）
+#   - **削除しか含まないコマンドでも、複数行なら拒否する**（`git fetch` 改行
+#     `git push origin --delete x`）。混在 push を塞いだ代償。削除は 1 行で実行する
+#   - パイプを含む削除（`... --delete x | cat`）も同様に拒否する
+#
+# ★これらの限界は tools/guard-branch-cases.sh の「6. 既知の限界」節に**ケースとして
+#   固定**してある（loop-engineering）。挙動を変えたらケース表も同時に直すこと。
 #
 # ★リポ固有の素通し（特定リポ名を含むコマンドを通す等）をここに足さない。
 #   リポ名は変わる。旧名が残った素通しは無条件バイパスの穴になる
@@ -92,8 +103,11 @@ if ! printf '%s' "$CMD" | grep -q 'git commit'; then
     if [ "$IS_DELETE" = 1 ]; then
       # main / master が引数のどこかに現れたら削除例外を使わない（fall through）。
       # 語境界は 行頭 / 空白 / コロン / 引用符 のみ — feature/main-fix や
-      # feature/mainline は "/" が前に来るので一致しない（実測で確認した形）
-      printf '%s' "$CMD" | grep -qE '(^|[[:space:]]|:|")(refs/heads/)?(main|master)("|[[:space:]]|$)' || exit 0
+      # feature/mainline は "/" が前に来るので一致しない（実測で確認した形）。
+      # 接頭辞は refs/heads/ と heads/ の両方を見る。git は `--delete heads/main` を
+      # refs/heads/main に展開して main を消すため（round3 hinshitsu W2 — 実 bare リポ
+      # への push で展開を目撃。新旧とも素通りしていた元からの穴）
+      printf '%s' "$CMD" | grep -qE '(^|[[:space:]]|:|")((refs/)?heads/)?(main|master)("|[[:space:]]|$)' || exit 0
     fi
   fi
 fi
