@@ -57,7 +57,7 @@ while IFS= read -r file; do
         *) fail "$rel: リンク先がリポジトリ外を指す（GitHub 上で 404 になる）: $target" ;;
       esac
     fi
-  done < <(awk '/^[[:space:]]*```/{f=!f;next} !f' "$file" 2>/dev/null \
+  done < <(awk '/^[[:space:]]*(```|~~~)/{f=!f;next} !f' "$file" 2>/dev/null \
            | sed 's/`[^`]*`//g' \
            | grep -oE '\]\([^)]+\)' | sed 's/^](//; s/)$//')
 

@@ -24,15 +24,17 @@ esac
 
 INPUT=$(cat)
 
-# ガードが無い・実行できないなら通す（門番の故障で全作業を止めない）
-[ -x "$GUARD" ] || { echo '{"permission":"allow"}'; exit 0; }
+# ガードが無いなら通す（門番の故障で全作業を止めない）
+# ★-x で見ない: 実行ビットが落ちただけで門番が黙って全許可になる
+#   （2026-08-31 レビュー user の指摘 — bash 経由で呼べば +x に依存しない）
+[ -f "$GUARD" ] || { echo '{"permission":"allow"}'; exit 0; }
 
 CMD=$(echo "$INPUT" | jq -r '.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && { echo '{"permission":"allow"}'; exit 0; }
 
 # Claude PreToolUse 形の stdin に整形して、正本のガードへ渡す
 CLAUDE_INPUT=$(jq -n --arg cmd "$CMD" '{tool_name: "Bash", tool_input: {command: $cmd}}')
-ERR=$(printf '%s' "$CLAUDE_INPUT" | "$GUARD" 2>&1 >/dev/null)
+ERR=$(printf '%s' "$CLAUDE_INPUT" | bash "$GUARD" 2>&1 >/dev/null)
 STATUS=$?
 
 if [ "$STATUS" -eq 2 ]; then

@@ -26,6 +26,8 @@
 # 既知の限界（許容済み）:
 #   - feature ブランチから `git push origin feature:main` 型の明示 refspec はすり抜ける
 #   - 人間がターミナルで直接叩く操作には効かない（AI のツール呼び出しのみ）
+#   - `git -C 別リポ push` もこのリポのブランチで判定する（フックは自リポしか知らない。
+#     別リポを対象にした操作が誤って止まったら、そのリポを開いたセッションでやり直す）
 #
 # ★リポ固有の素通し（特定リポ名を含むコマンドを通す等）をここに足さない。
 #   リポ名は変わる。旧名が残った素通しは無条件バイパスの穴になる
@@ -46,23 +48,32 @@ TOOL=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null) || exit 0
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || exit 0
 
 # git commit / git push を含まないコマンドは対象外
-case "$CMD" in
-  *"git commit"*|*"git push"*) ;;
-  *) exit 0 ;;
-esac
+# （`git -C path push` 形も対象に含める — 2026-08-31 レビュー hinshitsu W1）
+if ! printf '%s' "$CMD" | grep -qE 'git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+(commit|push)'; then
+  exit 0
+fi
 
-# --- ブランチ削除の push は通す ---
+# --- ブランチ削除の push は「コマンド全体が削除 push 単体のとき」だけ通す ---
 # この門番の目的は「main に直接コミット / push させない」こと。
 # マージ済みブランチを消す `git push origin --delete xxx` はそれに当たらないが、
 # 文字列に "git push" が含まれるため巻き込まれて拒否されていた（nagano で実測）。
-# main / master 自体を消そうとしている場合だけは止める。
+# ★判定はコマンド全文への完全一致で行う。部分一致で exit 0 すると、
+#   `git push origin -d feature/x main` や `git push --delete origin x && git push origin main`
+#   のような混在コマンドまで素通りする（2026-08-31 レビュー hinshitsu B1-1 で実測）。
+#   混在は fall through して main 判定で止まる。削除は単体コマンドで実行すればよい。
 if ! printf '%s' "$CMD" | grep -q 'git commit'; then
-  if printf '%s' "$CMD" | grep -qE 'git push[^|;&]*(--delete|[[:space:]]-d([[:space:]]|$))'; then
-    printf '%s' "$CMD" | grep -qE '(--delete|[[:space:]]-d)[[:space:]]+("?origin"?[[:space:]]+)?"?(main|master)"?([[:space:]]|$)' || exit 0
+  REF='"?[A-Za-z0-9._/-]+"?'
+  # --delete / -d 形式（削除対象は複数可。main / master が混ざる場合は通さない）
+  if printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+(${REF}[[:space:]]+)?(--delete|-d)([[:space:]]+${REF})+[[:space:]]*\$"; then
+    printf '%s' "$CMD" | grep -qE '(--delete|-d)([[:space:]]+"?[A-Za-z0-9._/-]+"?)*[[:space:]]+"?(main|master)"?([[:space:]]|$)' || exit 0
   fi
-  # コロン形式の削除: git push origin :feature/xxx
-  if printf '%s' "$CMD" | grep -qE 'git push[^|;&]*[[:space:]]:[^[:space:]]'; then
-    printf '%s' "$CMD" | grep -qE '[[:space:]]:"?(main|master)"?([[:space:]]|$)' || exit 0
+  # `git push --delete origin xxx` の引数順（フラグが先）
+  if printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+(--delete|-d)[[:space:]]+${REF}([[:space:]]+${REF})+[[:space:]]*\$"; then
+    printf '%s' "$CMD" | grep -qE '[[:space:]]"?(main|master)"?[[:space:]]*$' || exit 0
+  fi
+  # コロン形式の削除: git push origin :feature/xxx（単体のみ）
+  if printf '%s' "$CMD" | grep -qE "^[[:space:]]*git[[:space:]]+push[[:space:]]+${REF}([[:space:]]+:[A-Za-z0-9._/-]+)+[[:space:]]*\$"; then
+    printf '%s' "$CMD" | grep -qE ':"?(main|master)"?([[:space:]]|$)' || exit 0
   fi
 fi
 

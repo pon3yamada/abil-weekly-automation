@@ -17,7 +17,7 @@ REPO_NAME="$(basename "$ROOT")"
 SESSION=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
 COUNTER="${TMPDIR:-/tmp}/${REPO_NAME}-merge-markers-retry-${SESSION}"
 
-RESULT=$("$(dirname "$0")/validate-merge-markers.sh" 2>&1)
+RESULT=$(bash "$(dirname "$0")/validate-merge-markers.sh" 2>&1)
 STATUS=$?
 
 if [ "$STATUS" -eq 0 ]; then
