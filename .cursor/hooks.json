@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": ".cursor/hooks/stop-validate.sh",
+        "timeout": 30,
+        "loop_limit": 5
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/shell-guard.sh .claude/hooks/guard-branch.sh",
+        "timeout": 10
+      },
+      {
+        "command": ".cursor/hooks/shell-guard.sh .claude/hooks/guard-pr.sh",
+        "timeout": 30
+      }
+    ]
+  }
+}
