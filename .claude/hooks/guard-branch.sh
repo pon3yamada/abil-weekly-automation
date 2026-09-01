@@ -26,18 +26,22 @@
 # 既知の限界（許容済み・2026-08-31 round2 で棚卸し）:
 #   - feature ブランチから `git push origin feature:main` 型の明示 refspec はすり抜ける
 #   - 人間がターミナルで直接叩く操作には効かない（AI のツール呼び出しのみ）
-#   - `git -C 別リポ push` もこのリポのブランチで判定する（フックは自リポしか知らない。
-#     別リポを対象にした操作が誤って止まったら、そのリポを開いたセッションでやり直す）
-#   - `git -C <path> push origin --delete x` は削除例外に入れず拒否する（誤拒否側）。
-#     例外の入口が `^git push` 形しか受け付けないため。削除は -C なしで実行する
+#   - （解消: 2026-09-02）`git -C 別リポ` は判定の対象外にした。詳細は本文の A 節
 #   - main / master 自体の削除を止められるのは「main / master にいるとき」だけ。
 #     feature ブランチから `git push origin --delete main` は fall through して通る
 #     （round2 の棚卸しで発見・裁定は worklog 2026-08-31。塞ぐには構造変更が要る）
 #   - リモート名が main のとき（`git push main --delete x`）は削除例外を使わない
 #     （フェイルクローズ側。コマンド全文で main を探す設計の副作用）
-#   - **実行されない文字列としての `git push` にも発火する**（`echo "git push origin main"`・
-#     `rg -n 'git push' file` など）。手順を文書に書く作業が門番に止まる。判定を
-#     「実行されるコマンドか」に踏み込ませると素通しの穴になるので、拒否側に倒す
+#   - （解消: 2026-09-02）実行されない文字列としての `git push` は対象外にした。詳細は本文の B 節。
+#     ただし**引用符の中に文の区切り記号を含む**文字列は今も拒否する
+#     （`echo "手順: a; git push origin main"`）。区切りで割ると git 始まりの文が現れるため。
+#     引用の解釈まで踏み込むと素通しの穴になるので、ここは拒否側に倒したまま
+#   - 同型で、**ヒアドキュメントの本文**に書いた `git push origin main` も拒否する
+#     （`cat > 手順.md <<EOF` … `EOF`）。手順書を heredoc で書く作業は今も止まる。
+#     heredoc の終端（引用付き終端・`<<-`・複数 heredoc）まで解釈すると誤りやすいので未対応。
+#     回避策: 手順書は Write ツールか、行頭を字下げして書く
+#   - `git -C <存在しないパス>` は「別リポか判定できない」ので従来どおり判定を続ける
+#     （拒否側。存在しないパスへの push はどのみち失敗するので実害は小さい）
 #   - `=` を含むオプション付きの削除（`--force-with-lease=x:abc`）・非 ASCII の
 #     ブランチ名の削除は例外に入らず拒否する（REF の字種を絞っているため）
 #   - **削除しか含まないコマンドでも、複数行なら拒否する**（`git fetch` 改行
@@ -67,8 +71,70 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // ""' 2>/dev/null) || exit 0
 
 # git commit / git push を含まないコマンドは対象外
 # （`git -C path push` 形も対象に含める — 2026-08-31 レビュー hinshitsu W1）
-if ! printf '%s' "$CMD" | grep -qE 'git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+(commit|push)'; then
+# ★-C の繰り返しは ? ではなく * で受ける。? だと `git -C a -C b push origin main` が
+#   この粗いフィルタに一致せず、門番に届く前に素通りしていた（元からの穴。
+#   2026-09-02 に A のケース表 8 節を書いていて発見）。git は -C を累積で解釈する。
+if ! printf '%s' "$CMD" | grep -qE 'git([[:space:]]+-C[[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push)'; then
   exit 0
+fi
+
+# --- B. 実行されない文字列としての git は対象外（2026-09-02 追加）---------------
+# 以前は「コマンド全文に git commit / push という並びがあるか」だけを見ていたため、
+# `echo "git push origin main"` や `rg -n 'git push' docs/` のような**実行されない
+# 文字列**にも発火し、手順を文書に書く作業が門番に止まっていた（利用者の申告で発覚）。
+#
+# 判定を「文の先頭が git か」で足切りする。文の区切りは 改行 / ; / && / || / パイプ。
+# 先頭の環境変数代入（VAR=val）と開き括弧は読み飛ばす（`AX_ISSUE=1 git push` を拾うため）。
+#
+# ★この節は**従来の条件との AND** であって、新たに拒否するケースを一つも増やさない。
+#   「上の grep が拾った」かつ「git 始まりの文がある」ときだけ先へ進む。緩める変更を
+#   足すときは、この AND の形を崩さないこと（崩すと素通しではなく誤拒否が増える）。
+STMTS=$(printf '%s' "$CMD" | sed -e 's/&&/;/g' -e 's/||/;/g' | tr ';|' '\n\n')
+HAS_GIT_STMT=0
+while IFS= read -r stmt; do
+  # 先頭の空白・開き括弧・環境変数代入を落としてから先頭語を見る
+  s=$(printf '%s' "$stmt" | sed -E 's/^[[:space:](]*//; s/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//')
+  case "$s" in
+    git|git[[:space:]]*) HAS_GIT_STMT=1; break ;;
+  esac
+done <<STMTS_EOF
+$STMTS
+STMTS_EOF
+[ "$HAS_GIT_STMT" = 1 ] || exit 0
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# --- A. 別リポを対象にした git は判定しない（2026-09-02 追加）------------------
+# 以前は `git -C <他リポ> push` を**このリポのブランチ**で判定していた。main にいる
+# リポ（例: abil-os）を開いていると、他リポ宛の commit / push が一律で拒否される。
+#
+# ★これは守りを緩める変更ではない。フックは**開いたリポの設定しか読まない**
+#   （AGENTS.md「フックは Claude Code を開いたリポの設定しか読まない」2026-08-25 実測）。
+#   つまり他リポの main は元から一切守れておらず、誤拒否だけをしていた。守れない範囲で
+#   人を止めるのをやめる、という整理。他リポの main を守りたいならそのリポで開き直す。
+#
+# 同一リポの別 worktree は「別リポ」に**しない**。--git-common-dir は worktree 間で
+# 同じ値を返すので、これで親子を同一視できる（abil-os と abil-os--issue-42 で実測）。
+# toplevel で比べると worktree が別リポ扱いになり、`git -C ../abil-os push` で
+# 親の main へ push できてしまう。
+#
+# 判定できないとき（パスが存在しない・-C が複数ある・git リポでない）は**従来どおり
+# 判定を続ける**（フェイルクローズ側。ここだけは素通しに倒さない）。
+# ★個数は grep -o | wc -l で数える。grep -c は「一致した**行数**」なので、
+#   1 行に -C が 2 つあっても 1 と数えてしまう（`git -C 他リポ -C 自リポ push` が
+#   素通しになる。ケース表 8 節で検出した実バグ — 2026-09-02）。
+NCFLAG=$(printf '%s' "$CMD" | grep -oE '(^|[[:space:]])-C[[:space:]]+[^[:space:]]+' | grep -c . )
+if [ "$NCFLAG" = 1 ]; then
+  TPATH=$(printf '%s' "$CMD" | grep -oE '(^|[[:space:]])-C[[:space:]]+[^[:space:]]+' | head -1           | sed -E 's/.*-C[[:space:]]+//' | tr -d "\"'")
+  case "$TPATH" in "~") TPATH="$HOME" ;; "~/"*) TPATH="$HOME/${TPATH#\~/}" ;; esac
+  CWD=$(echo "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
+  [ -n "$CWD" ] || CWD="$ROOT"
+  case "$TPATH" in /*) ABS="$TPATH" ;; *) ABS="$CWD/$TPATH" ;; esac
+  OTHER=$(git -C "$ABS" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  SELF=$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  if [ -n "$OTHER" ] && [ -n "$SELF" ] && [ "$OTHER" != "$SELF" ]; then
+    exit 0
+  fi
 fi
 
 # --- ブランチ削除の push は「コマンド全体が削除 push 単体のとき」だけ通す ---
@@ -112,7 +178,6 @@ if ! printf '%s' "$CMD" | grep -q 'git commit'; then
   fi
 fi
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BRANCH=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
 [ -n "$BRANCH" ] || exit 0
 
