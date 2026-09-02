@@ -28,9 +28,48 @@ case "$CMD" in
   *) exit 0 ;;
 esac
 
+# --- B'. 実行されない文字列としての gh は対象外（2026-09-02 追加・decisions #136）---
+# guard-branch の B（#134）と同型の欠陥がここにも残っていた。上の case はコマンド全文の
+# 部分一致なので、**文字列として現れただけ**の PR コマンドにも発火する。
+#
+# 文の先頭が gh のときだけ見る。区切りは 改行 / ; / && / || / パイプ。先頭の環境変数代入と
+# 開き括弧は読み飛ばす。**従来条件との AND** なので、拒否するケースは 1 つも増えない。
+# 限界も同じ: 引用符やヒアドキュメントの中に区切り記号があると拒否側に倒れる。
+GH_STMTS=$(printf '%s' "$CMD" | sed -e 's/&&/;/g' -e 's/||/;/g' | tr ';|' '\n\n')
+HAS_GH_STMT=0
+while IFS= read -r stmt; do
+  s=$(printf '%s' "$stmt" | sed -E 's/^[[:space:](]*//; s/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*//')
+  case "$s" in
+    gh|gh[[:space:]]*) HAS_GH_STMT=1; break ;;
+  esac
+done <<GH_EOF
+$GH_STMTS
+GH_EOF
+[ "$HAS_GH_STMT" = 1 ] || exit 0
+
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HOOKS="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT" || exit 0
+
+# --- A'. 別リポ宛の PR は判定しない（2026-09-02 追加・decisions #135）------------
+# guard-branch の A（#132）と同じ理屈。フックは開いたリポの設定しか読まないので、
+# 他リポの PR を止めても、そのリポの門番の代わりにはならない。
+#
+# ★guard-branch の A より害が大きい。うるさいだけでなく**判定が誤る**: 他リポ宛の PR に
+#   対して、この門番は「このリポの検査」を走らせ、「このリポの origin/main への追随」を
+#   見て、「このリポの check-goal.sh が出す見出し」を本文に要求していた。全部よそのリポの
+#   話なので、通っても落ちても意味がない。
+#
+# 判定できないとき（-R が無い = カレントリポ宛、origin が引けない）は判定を続ける。
+PR_REPO=$(printf '%s' "$CMD" | grep -oE -- '(^|[[:space:]])-R[[:space:]]+[^[:space:]]+' | head -1 \
+          | sed -E 's/.*-R[[:space:]]+//' | tr -d "\"'")
+if [ -n "$PR_REPO" ]; then
+  SELF_REPO=$(git -C "$ROOT" remote get-url origin 2>/dev/null \
+              | sed -E 's|^.*github\.com[:/]||; s|\.git$||')
+  if [ -n "$SELF_REPO" ] && [ "$PR_REPO" != "$SELF_REPO" ]; then
+    exit 0
+  fi
+fi
 
 # --- 0. 共通ガード: 衝突マーカーと origin/main への追随 ---
 
