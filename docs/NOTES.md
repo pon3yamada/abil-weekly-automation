@@ -47,7 +47,8 @@ OAuth 同意画面（Google Cloud プロジェクト `ABiL` → Google Auth Plat
 - **Google**: OAuth 同意画面は確認時点で既に「本番環境」（いつ公開したかの記録はない）。2026-05-08 登録の refresh_token が 5 か月動いていることから、公開後に取得したものと判断し**再取得はしていない**。`Deploy Weekly Report` 手動実行で `[Google] google_ads セクションを更新しました` を確認。
 - **token_expiry_check.yml**: 保険として残す。`META_TOKEN_GENERATED_AT` + 60日 の推定フォールバックを廃止し、`debug_token` が失敗したら「検証できません（失効・取り消しの可能性）」を毎日 Slack 通知してジョブも失敗させるよう変更。Slack の対応手順も無期限トークンの手順に更新。
 - **検討して見送ったもの**: 60 日トークンを Graph API（`GET /oauth/access_token?grant_type=fb_exchange_token&set_token_expires_in_60_days=true`）で定期更新し Secrets を書き換える案。公式に可能だが、アプリシークレットと Secrets 書き込み権限付きの GitHub トークン（それ自体にも期限がある）を新たに守る必要があり、public リポのログ漏洩リスクもあるため不採用。無期限トークンが使えなくなった場合の代替案として残す。
-- 9/21〜9/27 のレポートは上記の手動実行で Meta データ込みに再生成済み。それより前の Meta 欠落週（9/7〜・9/14〜）は未対応。
+- **欠落週の再生成**: 9/21〜9/27 は上記の `Deploy Weekly Report` 手動実行で Meta データ込みに再生成。9/7〜9/13・9/14〜9/20 は、ローカル専用だった `regenerate_past_reports.py` / `patch_sheet_ads.py` を Actions で動かす `backfill.yml`（PR #11 で追加）を `start_date=2026-09-07` / `end_date=2026-09-14` で実行し、HTML 再生成・Sheets（DQ・DR 列）上書き・Pages デプロイまで完了（run 37175044325、両週とも `[Meta] meta_ads セクションを更新しました`）。
+- 以後、データが欠けた過去週は `Backfill Past Reports`（`.github/workflows/backfill.yml`）を開始週・終了週の月曜を指定して手動実行すれば作り直せる。成否は Actions の緑ではなくログの `[Meta] meta_ads セクションを更新しました` / `[Google] google_ads セクションを更新しました` で判定する。
 
 ---
 
