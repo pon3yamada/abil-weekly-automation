@@ -40,6 +40,20 @@ OAuth 同意画面（Google Cloud プロジェクト `ABiL` → Google Auth Plat
 
 ---
 
+### 2026-10-04 — リポを private 化し、週次レポートを Cloudflare Pages＋Access 配信に移行（Issue #13）
+
+- **背景**: GitHub Pages を無料で使うためにリポを public にしていた。その結果、`_site/` にコミットされた週次レポート HTML（売上などの実数値が平文）と、この NOTES に書いていたレポートのパスワード・ハッシュを誰でも読めた。パスワード確認はブラウザ側の JavaScript だけで、HTML 本体はそのまま取得できるためアクセス制御として働いていなかった。AGENTS.md の「顧客数値の実データをコミットしない」とも食い違っていた。
+- **選んだ構成**: Cloudflare Pages（Direct Upload・`wrangler pages deploy _site`）＋ Cloudflare Access（許可したメールアドレスだけがワンタイムコードでログインできる）。配信 URL は `<project>.pages.dev`。リポは private にする。
+- **見送った案**:
+  - Cloudflare Pages ＋ 今のブラウザ側パスワード: 配信先が変わるだけで、HTML を直接取得できる問題が残る
+  - Netlify / Vercel のパスワード保護: 有料プランが必要
+  - Drive・Slack でファイルを配信: 一覧ページやリンクでの見え方が変わる
+  - 独自ドメイン（`tools.abil.shop`）のまま Access で守る: `abil.shop` の DNS を Cloudflare へ移す必要がある（別 Issue）
+- **実際の手順**: （作業しながら追記）
+- **つまずいた点**: （作業しながら追記）
+
+---
+
 ### 2026-10-04 — Meta・Google のトークンを無期限クレデンシャルに切り替え（Issue #5）
 
 - **背景**: Meta トークン（60 日）が 2026-09 上旬に再び失効し、9 月の週次レポートは Meta データ欠落のまま（取得ステップが `continue-on-error` のため緑）。`token_expiry_check` は `debug_token` が 400（失効トークンは自分自身を debug できない）→ `META_TOKEN_GENERATED_AT`（2026-05-08 のまま）からの推定で「残り -88 日」を通知していた。
@@ -535,7 +549,7 @@ python3 src/patch_sheet_shopify_sessions.py \
   - `src/get_shopify_token.py` で OAuth トークン（`shpat_xxx`）を取得し `.env` の `SHOPIFY_ACCESS_TOKEN` に保存
   - `src/fetch_shopify.py` で実データ取得確認済み（注文件数・週次売上・AOV・既存顧客比率）
   - `tools.abil.shop`（GitHub Pages）をパスワード保護付きレポートサイトに改造
-    - トップ: `https://tools.abil.shop/` → レポート一覧（`abil-ai` でログイン）
+    - トップ: `https://tools.abil.shop/` → レポート一覧（ブラウザ側のパスワード入力でログイン。2026-10-04 に廃止 — Issue #13）
     - 個別: `https://tools.abil.shop/weekly_report_YYMMDD-YYMMDD/`
   - GitHub Actions `Deploy Weekly Report` ワークフロー完成・動作確認済み
     - 毎週月曜 09:00 JST に自動実行（cron）または手動実行
@@ -561,7 +575,7 @@ python3 src/patch_sheet_shopify_sessions.py \
 
 - **注意事項**
   - `_site/` は `.gitignore` に含まれるが、Actions では `git add -f` で強制追加している
-  - パスワード `abil-ai` のハッシュ: `10bd0d13c822595f6995db0dc2c90b9ea38f0ce5e9c90cafa56a671529a6bb08`
+  - ブラウザ側パスワード保護の値は記載を削除した（2026-10-04 — Issue #13。public リポで読めていたため）
   - Shopify API バージョン: `2026-04`
 
 ### 2026-05-03 — Google Ads API / OAuth まわり

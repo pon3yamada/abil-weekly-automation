@@ -125,23 +125,15 @@ python3 src/generate_report.py -i build/report.json -o build/report.html
 - 報告対象の週: 店舗タイムゾーンで「基準日の属する週」の**ひとつ前の週**（月〜日）。基準日は既定で実行日。`--anchor-date 2026-05-03` で固定可。
 - テスト注文は既定で除外。`--include-test` で含める。支払済みのみなら `--paid-only`。
 
-## GitHub Pages（週次デプロイ）
+## Cloudflare Pages（週次デプロイ）
 
-**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → （任意）**LLM で `report.actions` を更新** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → Pages デプロイ → （任意）**Slack に URL 通知**。Shopify の **セッション取得**には Secret の **`SHOPIFY_API_VERSION` を 2025-10 以降**にし、トークンに **`read_reports`** を含める必要があります（空の場合はコード既定の 2025-10 が使われます）。改善アクション用に **`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`** のほか、`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER`・`GENERATE_ACTIONS_SOFT_FAIL`（ワークフローでは `--soft-fail` が付与済み）を Repository secrets で渡せます。Slack は `SLACK_WEBHOOK_URL`。未設定のキーはスキップされます。
+**`.github/workflows/pages.yml`（Deploy Weekly Report）** が、手動実行または毎週月曜 cron で次を実行します。Shopify → Meta → Google で `build/report_merged.json` を埋めたうえで **Google Sheets に列追記** → （任意）**LLM で `report.actions` を更新** → 個別レポート HTML 生成 → `reports_index.json` 更新 → `_site/` をコミット push → **Cloudflare Pages** へデプロイ → （任意）**Slack に URL 通知**。Shopify の **セッション取得**には Secret の **`SHOPIFY_API_VERSION` を 2025-10 以降**にし、トークンに **`read_reports`** を含める必要があります（空の場合はコード既定の 2025-10 が使われます）。改善アクション用に **`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`** のほか、`OPENAI_MODEL`・`GENERATE_ACTIONS_PROVIDER`・`GENERATE_ACTIONS_SOFT_FAIL`（ワークフローでは `--soft-fail` が付与済み）を Repository secrets で渡せます。Slack は `SLACK_WEBHOOK_URL`。未設定のキーはスキップされます。
 
-GitHub 上では **Settings → Pages → Build and deployment** の **Source** を **GitHub Actions** にしてください。カスタムドメインを使う場合は同画面で設定します。
+- 配信先: `https://abil-weekly-report.pages.dev/`（Cloudflare Pages プロジェクト `abil-weekly-report`、Direct Upload）。`wrangler pages deploy _site --branch=main` で常に本番へ出す
+- 閲覧制限: Cloudflare Access（Zero Trust チーム `abil-shop`）で、許可したメールアドレスだけがワンタイムコードでログインできる。本番 URL と `*.abil-weekly-report.pages.dev`（プレビュー URL）の両方を同じアプリケーションで守る
+- 必要な Secrets: `CLOUDFLARE_API_TOKEN`（権限は Account → Cloudflare Pages → Edit のみ）・`CLOUDFLARE_ACCOUNT_ID`
+- トークンの発行し直しと、許可メールの足し方・外し方は [docs/NOTES.md](../docs/NOTES.md) の「現行の手順」
 
-### 独自ドメイン（例: `tools.abil.shop`）
-
-機密性は **アクセス制御がない限り上がりません**が、ブランド用 URL としてサブドメインを使う手順です（`abil.shop` の DNS を編集できる前提）。
-
-1. **GitHub**（このリポジトリ）→ **Settings** → **Pages** → **Custom domain** に **`tools.abil.shop`** を入力して **Save**。  
-2. 同じ画面に **DNS の指示**（チェックが通るまで待つ）が出ます。典型的には **`tools` の CNAME が `<owner>.github.io` を向く**形です（プロジェクトサイトでもターゲットは **ユーザー名または組織名の `github.io`**）。  
-3. **`abil.shop` の DNS を管理している画面**（Shopify 管理画面のドメイン、お名前.com など）で、その **CNAME を1本**追加する。既存の `@` やメール用レコードは変更しない。  
-4. GitHub の **DNS check** が成功するまで待つ（反映に数分〜48時間かかることがある）。  
-5. **Enforce HTTPS** が選べるようになったら有効にする。  
-6. 公開を確認したら、Shopify Dev Dashboard の **アプリ URL** など、外部に貼る URL を **`https://tools.abil.shop/`** に差し替える。
-
-公式: [GitHub Pages のカスタムドメイン](https://docs.github.com/ja/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+2026-10-04 までは GitHub Pages（旧独自ドメイン）＋ブラウザ側のパスワード入力で配信していた。経緯は docs/NOTES.md の Issue #13 の項。
 
 フェーズの進行に合わせてファイル名は変えても構いません。`../docs/ROADMAP.md` と揃えることを優先してください。
