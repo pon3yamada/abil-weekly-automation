@@ -10,9 +10,9 @@
 - やったこと:
 ```
 
-## 現行の手順（認証トークン）
+## 現行の手順（認証トークン・レポートの閲覧権限）
 
-日付つきの項は当時の記録。トークンの再生成・再取得は**この節の手順が正**（2026-10-04 時点）。
+日付つきの項は当時の記録。トークンの再生成・再取得と閲覧権限の変更は**この節の手順が正**（2026-10-04 時点）。
 
 ### Meta トークンの再生成手順（無期限トークン）
 
@@ -38,6 +38,36 @@ OAuth 同意画面（Google Cloud プロジェクト `ABiL` → Google Auth Plat
 3. Step 2 → Exchange authorization code for tokens → 表示された **refresh_token** を GitHub Secrets の `GOOGLE_ADS_REFRESH_TOKEN` に貼って更新
 4. `Deploy Weekly Report` を手動実行し、ログに `[Google] google_ads セクションを更新しました` が出ることを確認する（Google ステップは `continue-on-error` のため、ステップが緑なだけでは成功と判定しない）
 
+
+### Cloudflare API トークンの発行し直し（`CLOUDFLARE_API_TOKEN`）
+
+`Deploy Weekly Report` / `Backfill Past Reports` の「Cloudflare Pages にデプロイ」が認証エラー（`Authentication error` / `10000` など）で落ちたとき、またはトークンを取り消したときに行う。
+
+1. Cloudflare ダッシュボード → 右上の人型アイコン → **Profile** → **API Tokens** → **Create Token**
+2. **Create Custom Token** の **Get started** を押す
+3. Token name: `abil-weekly-report-deploy`（日付を付けてもよい）
+4. Permissions: **Account** / **Cloudflare Pages** / **Edit** の 1 行だけ
+5. Account Resources: **Include** / 自分のアカウント（`Yamada.pon3@...'s Account`）
+6. TTL は空のまま（無期限）→ **Continue to summary** → **Create Token**
+7. 表示されたトークンを GitHub → Settings → Secrets and variables → Actions の `CLOUDFLARE_API_TOKEN` に貼って更新（値はチャット・ファイル・ログに出さない。画面を閉じると二度と表示されない）
+8. 古いトークンは API Tokens 一覧の **…** → **Delete** で消す
+9. `Deploy Weekly Report` を `deploy_only=true` で手動実行し、「Cloudflare Pages にデプロイ」が成功することを確認する
+
+`CLOUDFLARE_ACCOUNT_ID` は変わらない（ダッシュボードの URL `dash.cloudflare.com/<ここ>/...` の 32 桁）。
+
+### レポートを見られる人（Access の許可メール）の足し方・外し方
+
+閲覧は Cloudflare Access のアプリケーション `abil-weekly-report`（Zero Trust チーム `abil-shop`）の Allow ポリシーで決まる。許可しているメールアドレスの一覧は Cloudflare 側にだけあり、リポには書かない（public 期間があったため）。
+
+1. Cloudflare ダッシュボード → **Zero Trust**（Cloudflare One）→ **Access controls** → **Applications**
+2. `abil-weekly-report` の **…** → **Edit**（または **Policies** から該当ポリシーを開く）
+3. ポリシーの **Include** → **Emails** の欄で
+   - 足す: メールアドレスを入力して Enter
+   - 外す: 該当アドレスの × を押す
+4. **Save** を押す
+5. 外した人がすでにログイン中なら、**Zero Trust** → **Team & Resources** → **Users** → 該当ユーザー → **Revoke session** でセッションも切る（切らないとセッションの期限（24 時間）までは見え続ける）
+6. 足した人には、配信 URL `https://abil-weekly-report.pages.dev/` を開き、届いた 6 桁のコードでログインできたかを確かめてもらう
+
 ---
 
 ### 2026-10-04 — リポを private 化し、週次レポートを Cloudflare Pages＋Access 配信に移行（Issue #13）
@@ -49,8 +79,18 @@ OAuth 同意画面（Google Cloud プロジェクト `ABiL` → Google Auth Plat
   - Netlify / Vercel のパスワード保護: 有料プランが必要
   - Drive・Slack でファイルを配信: 一覧ページやリンクでの見え方が変わる
   - 独自ドメイン（`tools.abil.shop`）のまま Access で守る: `abil.shop` の DNS を Cloudflare へ移す必要がある（別 Issue）
-- **実際の手順**: （作業しながら追記）
-- **つまずいた点**: （作業しながら追記）
+- **実際の手順**（順番は「Cloudflare で配信とログインを確かめる → private 化 → GitHub Pages 無効化と DNS の後片付け」。レポートが見られない期間を作らないため）:
+  1. Cloudflare の既存アカウントで Pages プロジェクト `abil-weekly-report` を Direct Upload で作成（中身は数値なしの仮ページ）。URL は `https://abil-weekly-report.pages.dev`
+  2. Zero Trust を Free プラン（$0・50 ユーザーまで）で有効化。チーム名は `abil-shop`（ログイン画面は `abil-shop.cloudflareaccess.com`）
+  3. Access の Self-hosted application `abil-weekly-report` を作成。宛先は `abil-weekly-report.pages.dev` と `*.abil-weekly-report.pages.dev`（プレビュー URL）の 2 つ、ポリシーは Allow ＋ Include Emails（許可メールは Cloudflare 側だけに置く）、ログインはメールのワンタイムコード
+  4. コード: `pages.yml` / `backfill.yml` のデプロイを `cloudflare/wrangler-action@v3` の `pages deploy _site --project-name=abil-weekly-report --branch=main` に置き換え（`deploy_only` も同じ）。`github-pages` environment と `pages` / `id-token` 権限を外した。パスワード入力画面をテンプレート・生成スクリプト・コミット済み `_site/` の HTML から撤去。Slack 通知と `shopify.app.toml` の URL を新 URL に変更
+  5. （以下、作業しながら追記）
+- **Actions の無料枠の見積もり（private 化の判断材料）**: 2026-09-04〜10-03 の実績は `Deploy Weekly Report` 4 回（1 回 50〜65 秒）・`Meta Token Expiry Check` 30 回（約 7 秒）・`Notify Slack Weekly Report` 4 回（約 11 秒）・CI は PR のたびに約 11 秒。ジョブごとに分単位へ切り上げても月 100 分未満で、無料枠（月 2,000 分）の 5% 程度
+- **つまずいた点**:
+  - Chrome を Claude から操作したとき、つながっている Chrome が 2 つあり（MacBook Pro と Studio）、ログインしていない方を操作していた。`list_connected_browsers` で切り替えて解決
+  - Zero Trust の Free プランでも支払い方法の登録（$0 の購入手続き）が必要。ここは人が操作した
+  - チーム名 `abil` は「この認証ドメインは既に登録済み」で使えなかった（チーム名は Cloudflare 全体で一意）
+  - Access の宛先に `pages.dev` を入れるには、Domain の選択（自分のゾーンしか出ない）ではなく **Switch to custom input** で直接入力する
 
 ---
 
