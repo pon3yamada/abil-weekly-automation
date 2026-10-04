@@ -1,0 +1,120 @@
+# 過去週のレポート再生成（バックフィル）
+# トークン失効などでデータが欠けた週を、正しい期間で取り直して作り直す。
+#   - HTML:   src/regenerate_past_reports.py（_site/<slug>/ と reports_index.json を更新）
+#   - Sheets: src/patch_sheet_ads.py（同じ週の列を上書き。patch_sheets=false で省略）
+# 従来はローカルの .env で実行していたが、クレデンシャルを手元に置かないため Actions で動かす。
+# 手動実行（workflow_dispatch）専用。cron は無い。
+name: Backfill Past Reports
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: '再生成する最初の週の月曜（YYYY-MM-DD）'
+        required: true
+        type: string
+      end_date:
+        description: '再生成する最後の週の月曜（YYYY-MM-DD）'
+        required: true
+        type: string
+      patch_sheets:
+        description: 'Google Sheets の同じ週の列も上書きする'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # 再生成したレポートを repo にコミットするため
+  pages: write
+  id-token: write
+
+# pages.yml と同じグループ。週次の生成・デプロイと同時に走らせない
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
+
+    env:
+      SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
+      SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+      SHOPIFY_API_VERSION: ${{ secrets.SHOPIFY_API_VERSION }}
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+      GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+      GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+      GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+      GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+      GOOGLE_ADS_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_CUSTOMER_ID }}
+      GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+      GENERATE_ACTIONS_PROVIDER: ${{ secrets.GENERATE_ACTIONS_PROVIDER }}
+      REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
+      # 入力は run: に直接展開せず環境変数で渡す（スクリプト注入対策）
+      START_DATE: ${{ inputs.start_date }}
+      END_DATE: ${{ inputs.end_date }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # git push のために必要
+
+      - name: Python 依存インストール
+        run: python3 -m pip install -q -r src/requirements.txt
+
+      # Meta / Google の取得失敗はスクリプト内で握りつぶされる（週は続行）。
+      # 成否はログの「[Meta] meta_ads セクションを更新しました」「[Google] google_ads セクションを更新しました」で判定する
+      - name: 過去週の HTML を再生成
+        run: |
+          python3 src/regenerate_past_reports.py \
+            --start-date "$START_DATE" \
+            --end-date   "$END_DATE"
+
+      - name: Google Sheets の同じ週の列を上書き
+        if: ${{ inputs.patch_sheets }}
+        env:
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          GOOGLE_SHEETS_SPREADSHEET_ID: ${{ secrets.GOOGLE_SHEETS_SPREADSHEET_ID }}
+        run: |
+          python3 src/patch_sheet_ads.py \
+            --start-date "$START_DATE" \
+            --end-date   "$END_DATE"
+
+      - name: トップページ（レポート一覧）生成
+        run: |
+          python3 src/generate_index.py -o _site/index.html
+          test -s _site/index.html
+          touch _site/.nojekyll
+
+      - name: 再生成したレポートを repo にコミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f _site/weekly_report_*/ _site/index.html
+          git add src/data/reports_index.json
+          git diff --cached --quiet || git commit -m "report: backfill ${START_DATE}〜${END_DATE} の週を再生成"
+          git push
+
+      # ── GitHub Pages デプロイ（pages.yml と同じく1回だけ自動リトライ）──────
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: デプロイ失敗時は60秒待って再試行
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
