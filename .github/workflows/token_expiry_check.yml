@@ -1,9 +1,16 @@
 # Meta システムユーザートークンの失効アラート
-# 毎日 09:00 JST（00:00 UTC）に実行し、残り 14/10/7/5/4/3/2/1 日のタイミングで Slack 通知
-# 失効後（残り0日以下）は再発行されるまで毎日通知する
+# 毎日 09:00 JST（00:00 UTC）に実行する。
 #
-# 有効期限は Meta Graph API（debug_token）から実測で取得する。
-# META_TOKEN_GENERATED_AT + 60日 の日付計算は API が使えない場合のフォールバック。
+# 本番トークンは無期限（2026-10-04〜、docs/NOTES.md 参照）なので通常は何も通知しない。
+# このワークフローは「誤って期限付き（60日）で再生成した」「取り消された」ときの保険として残す。
+#
+# 有効期限は Meta Graph API（debug_token）から実測で取得する:
+#   - expires_at=0      → 無期限。通知しない
+#   - expires_at>0      → 残り 14/10/7/5/4/3/2/1 日のタイミングと、失効後は毎日 Slack 通知
+#   - is_valid=false    → 失効扱いで毎日通知
+#   - 呼び出し自体が失敗 → 失効・取り消しされたトークンは debug_token が 400 を返すため、
+#                          「検証できない」として毎日通知し、ジョブも失敗させる
+#                          （旧実装の META_TOKEN_GENERATED_AT + 60日 の推定フォールバックは廃止）
 name: Meta Token Expiry Check
 
 on:
@@ -23,15 +30,13 @@ jobs:
       - name: トークン残り日数を確認して必要なら Slack 通知
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          META_TOKEN_GENERATED_AT: ${{ secrets.META_TOKEN_GENERATED_AT }}
-          META_TOKEN_EXPIRES_DAYS: "60"
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           FORCE_NOTIFY: ${{ inputs.force_notify || 'false' }}
         run: |
           python3 - <<'EOF'
           import os, json, sys
           import urllib.request, urllib.parse
-          from datetime import date, datetime, timedelta
+          from datetime import datetime
           from zoneinfo import ZoneInfo
 
           JST = ZoneInfo("Asia/Tokyo")
@@ -39,12 +44,14 @@ jobs:
 
           remaining = None
           expire_date = None
-          generated = None
-          source = None  # "API実測" / "生成日から推定"
+          source = None  # "API実測"
+          verify_error = None  # debug_token で検証できなかった理由（失効・取り消し・通信失敗）
 
-          # ── 優先: Graph API の debug_token で実際の有効期限を取得 ──────────
+          # ── Graph API の debug_token で実際の有効期限を取得 ──────────────────
           token = os.environ.get("META_ACCESS_TOKEN", "").strip()
-          if token:
+          if not token:
+              verify_error = "META_ACCESS_TOKEN が未設定です"
+          else:
               try:
                   qs = urllib.parse.urlencode({"input_token": token, "access_token": token})
                   with urllib.request.urlopen(
@@ -71,27 +78,14 @@ jobs:
               except SystemExit:
                   raise
               except Exception as exc:
-                  print(f"debug_token 呼び出し失敗（日付計算にフォールバック）: {exc}", flush=True)
+                  verify_error = f"debug_token 呼び出し失敗: {exc}"
 
-          # ── フォールバック: 生成日 + 有効日数から推定 ──────────────────────
-          if remaining is None:
-              generated_str = os.environ.get("META_TOKEN_GENERATED_AT", "").strip()
-              if not generated_str:
-                  print("META_TOKEN_GENERATED_AT が未設定のためスキップします", flush=True)
-                  sys.exit(0)
-
-              try:
-                  generated = date.fromisoformat(generated_str)
-              except ValueError:
-                  print(f"日付フォーマットエラー: {generated_str}", flush=True)
-                  sys.exit(1)
-
-              expires_days = int(os.environ.get("META_TOKEN_EXPIRES_DAYS", "60"))
-              elapsed = (today - generated).days
-              remaining = expires_days - elapsed
-              expire_date = generated + timedelta(days=expires_days)
-              source = "生成日から推定"
-              print(f"生成日: {generated}  経過: {elapsed}日  残り: {remaining}日", flush=True)
+          # ── 検証できなかった場合: 失効・取り消しの可能性が高いので毎日通知し、ジョブも失敗させる ──
+          if verify_error:
+              print(f"検証失敗: {verify_error}", flush=True)
+              remaining = 0
+              expire_date = "不明（検証失敗）"
+              source = "検証失敗"
 
           # 通知するタイミング（または強制通知フラグ）。失効後（残り0日以下）は毎日通知する
           force = os.environ.get("FORCE_NOTIFY", "false").lower() == "true"
@@ -105,7 +99,7 @@ jobs:
           webhook_url = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
           if not webhook_url:
               print("SLACK_WEBHOOK_URL が未設定のためスキップします", flush=True)
-              sys.exit(0)
+              sys.exit(1 if verify_error else 0)
 
           # 緊急度に応じた絵文字・色
           if remaining <= 0:
@@ -125,7 +119,9 @@ jobs:
               color = "#3B82F6"
               urgency = "お知らせ"
 
-          if remaining <= 0:
+          if verify_error:
+              header_text = f"{emoji} [{urgency}] Meta トークンを検証できません（失効・取り消しの可能性）"
+          elif remaining <= 0:
               header_text = f"{emoji} [{urgency}] Meta トークンが失効しています（{-remaining} 日経過）"
           else:
               header_text = f"{emoji} [{urgency}] Meta トークンがあと {remaining} 日で失効します"
@@ -156,11 +152,13 @@ jobs:
                                   "type": "mrkdwn",
                                   "text": (
                                       "*対応手順*\n"
-                                      "1. <https://business.facebook.com/latest/settings/system_users|Meta Business Suite → システムユーザー> を開く\n"
+                                      "1. <https://business.facebook.com/latest/settings/system_users?business_id=400469534495789|Meta Business Suite → システムユーザー> を開く\n"
                                       "2. `abil_weekly-automation` → *トークンを生成*\n"
-                                      "3. アプリ: `abil-weekly-report` / 有効期限: *60日* を選択\n"
-                                      "4. 新しいトークンを GitHub Secrets の `META_ACCESS_TOKEN` に更新\n"
-                                      "5. `META_TOKEN_GENERATED_AT` も今日の日付に更新（フォールバック用）"
+                                      "3. アプリ: `abil-weekly-report` / 有効期限: *1回限り*（＝無期限。*60日間* は選ばない）\n"
+                                      "4. 権限: `ads_read` / `ads_management` / `pages_read_engagement`\n"
+                                      "5. 新しいトークンを GitHub Secrets の `META_ACCESS_TOKEN` に更新\n"
+                                      "6. このワークフローを手動実行し、ログが「無期限のため通知不要」になることを確認\n"
+                                      "詳細: docs/NOTES.md「Meta トークンの再生成手順」"
                                   ),
                               },
                           },
@@ -176,4 +174,8 @@ jobs:
           )
           with urllib.request.urlopen(req, timeout=10) as resp:
               print(f"Slack 通知送信完了: {resp.status}", flush=True)
+
+          # 検証できなかった場合は通知後にジョブを失敗させる（Actions 上でも赤くして気づけるように）
+          if verify_error:
+              sys.exit(1)
           EOF
