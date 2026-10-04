@@ -10,6 +10,46 @@
 - やったこと:
 ```
 
+## 現行の手順（認証トークン）
+
+日付つきの項は当時の記録。トークンの再生成・再取得は**この節の手順が正**（2026-10-04 時点）。
+
+### Meta トークンの再生成手順（無期限トークン）
+
+本番の `META_ACCESS_TOKEN` は**無期限**のシステムユーザートークン。通常は再生成不要。誤って削除・取り消しした、または `token_expiry_check` から「失効」「検証できません」の Slack 通知が来たときだけ行う。
+
+1. Meta Business Suite → 設定 → システムユーザー（`business_id=400469534495789`）→ `abil_weekly-automation` → **トークンを生成**
+2. アプリ: `abil-weekly-report`
+3. 有効期限: **「1回限り」**（日本語 UI の表記。これが無期限。**「60日間(おすすめ)」は選ばない**）
+4. 権限: `ads_read` / `ads_management` / `pages_read_engagement`
+5. 生成されたトークンを GitHub Secrets の `META_ACCESS_TOKEN` に貼って更新（値はチャット・ファイル・ログに出さない）
+6. `Meta Token Expiry Check` を手動実行し、ログが `API実測: トークンは無期限のため通知不要です` になることを確認する（`expires_at=0` の実測）
+   - 日付付きで「失効日=…」と出たら期限付きで作ってしまっている → 3 からやり直す
+
+`META_TOKEN_GENERATED_AT` は廃止（日付推定のフォールバックをやめたため不要。更新しなくてよい）。
+
+### Google 広告 refresh_token の再取得手順
+
+OAuth 同意画面（Google Cloud プロジェクト `ABiL` → Google Auth Platform → 対象）は**「本番環境」**なので、refresh_token に 7 日の期限はない。通常は再取得不要。`invalid_grant` が出たとき（取り消し・6 か月未使用など）だけ行う。
+
+- 「対象」画面の **「テストに戻る」は押さない**（押すと refresh_token が 7 日で失効する状態に戻る）
+1. [OAuth 2.0 Playground](https://developers.google.com/oauthplayground) → 歯車（OAuth 2.0 configuration）→ **Use your own OAuth credentials** にチェック、OAuth クライアント `ABiL週次レポート - OAuth Web` の Client ID / Secret を入力、**Access type: Offline**
+2. Step 1 でスコープ `https://www.googleapis.com/auth/adwords` のみを指定 → Authorize APIs → 広告アカウントにアクセスできる Google アカウントで許可
+3. Step 2 → Exchange authorization code for tokens → 表示された **refresh_token** を GitHub Secrets の `GOOGLE_ADS_REFRESH_TOKEN` に貼って更新
+4. `Deploy Weekly Report` を手動実行し、ログに `[Google] google_ads セクションを更新しました` が出ることを確認する（Google ステップは `continue-on-error` のため、ステップが緑なだけでは成功と判定しない）
+
+---
+
+### 2026-10-04 — Meta・Google のトークンを無期限クレデンシャルに切り替え（Issue #5）
+
+- **背景**: Meta トークン（60 日）が 2026-09 上旬に再び失効し、9 月の週次レポートは Meta データ欠落のまま（取得ステップが `continue-on-error` のため緑）。`token_expiry_check` は `debug_token` が 400（失効トークンは自分自身を debug できない）→ `META_TOKEN_GENERATED_AT`（2026-05-08 のまま）からの推定で「残り -88 日」を通知していた。
+- **Meta**: システムユーザートークンを有効期限「1回限り」で再生成。UI の選択肢は「60日間(おすすめ)」と「1回限り」の 2 つだけで「無期限」の表記はない。Meta の公式ドキュメント上トークン種別は「有効期限なし」と「60 日」の 2 種なので、「1回限り」が「無期限」の訳と推定し、実測で確定させた: `token_expiry_check` を 2 回手動実行し、両方とも `expires_at=0`（無期限）経路に入ることを確認（使い捨てではない）。続く `Deploy Weekly Report` 手動実行で Meta insights 取得も成功。
+- **Google**: OAuth 同意画面は確認時点で既に「本番環境」（いつ公開したかの記録はない）。2026-05-08 登録の refresh_token が 5 か月動いていることから、公開後に取得したものと判断し**再取得はしていない**。`Deploy Weekly Report` 手動実行で `[Google] google_ads セクションを更新しました` を確認。
+- **token_expiry_check.yml**: 保険として残す。`META_TOKEN_GENERATED_AT` + 60日 の推定フォールバックを廃止し、`debug_token` が失敗したら「検証できません（失効・取り消しの可能性）」を毎日 Slack 通知してジョブも失敗させるよう変更。Slack の対応手順も無期限トークンの手順に更新。
+- **検討して見送ったもの**: 60 日トークンを Graph API（`GET /oauth/access_token?grant_type=fb_exchange_token&set_token_expires_in_60_days=true`）で定期更新し Secrets を書き換える案。公式に可能だが、アプリシークレットと Secrets 書き込み権限付きの GitHub トークン（それ自体にも期限がある）を新たに守る必要があり、public リポのログ漏洩リスクもあるため不採用。無期限トークンが使えなくなった場合の代替案として残す。
+- **欠落週の再生成**: 9/21〜9/27 は上記の `Deploy Weekly Report` 手動実行で Meta データ込みに再生成。9/7〜9/13・9/14〜9/20 は、ローカル専用だった `regenerate_past_reports.py` / `patch_sheet_ads.py` を Actions で動かす `backfill.yml`（PR #11 で追加）を `start_date=2026-09-07` / `end_date=2026-09-14` で実行し、HTML 再生成・Sheets（DQ・DR 列）上書き・Pages デプロイまで完了（run 37175044325、両週とも `[Meta] meta_ads セクションを更新しました`）。
+- 以後、データが欠けた過去週は `Backfill Past Reports`（`.github/workflows/backfill.yml`）を開始週・終了週の月曜を指定して手動実行すれば作り直せる。成否は Actions の緑ではなくログの `[Meta] meta_ads セクションを更新しました` / `[Google] google_ads セクションを更新しました` で判定する。
+
 ---
 
 ### 2026-07-18 — Metaトークン失効の誤報通知を修正（期限をAPI実測に変更）
@@ -37,6 +77,7 @@
 - **障害3: Meta トークンが 2026-07-07 に失効**
   - `token_expiry_check` は残り 14/10/7/5/4/3/2/1 日にのみ通知する仕様で、**失効後（残り0日以下）は一切通知されない**バグがあった → 失効後は再発行まで毎日「失効済み」アラートを送るよう修正。
   - 再発行手順: Meta Business Suite → システムユーザー `abil_weekly-automation` → トークンを生成（アプリ `abil-weekly-report` / 60日）→ Secrets の `META_ACCESS_TOKEN` と `META_TOKEN_GENERATED_AT` を更新。
+    - ※ 2026-10-04 以降は無期限トークン。現行の手順は冒頭「現行の手順（認証トークン）」節を参照
 
 - **復旧手順**
   1. `deploy_only=true` で `Deploy Weekly Report` を実行 → コミット済みの 260629-260705 がデプロイされ 404 解消
@@ -386,6 +427,7 @@ python3 src/patch_sheet_shopify_sessions.py \
   - 現在「テスト」ステータス → **refresh_token が7日で失効する**
   - 対策: Google Cloud Console → 「OAuth 同意画面」→ **「アプリを公開」** で本番環境へ
   - 社内ツールのため審査不要で即時公開可能。公開後は refresh_token が無期限になる
+  - ※ 2026-10-04 確認時点で「本番環境」。現行の手順は冒頭「現行の手順（認証トークン）」節を参照
 
 - **Google Ads 設定まとめ**
   - OAuth クライアント: `ABiL週次レポート - OAuth Web`（Google Cloud）
@@ -418,6 +460,7 @@ python3 src/patch_sheet_shopify_sessions.py \
     - `META_ACCESS_TOKEN`: システムユーザートークン（60日で失効 → 期限前に再生成が必要）
     - `META_AD_ACCOUNT_ID`: `act_862328257705590`
   - トークン失効への対策: 60日ごとに Business Suite でトークン再生成 → Secret を更新
+    - ※ 2026-10-04 に無期限トークンへ切り替え済み。現行の手順は冒頭「現行の手順（認証トークン）」節を参照
   - フェーズ5: **Google 広告 API 連携**（`fetch_google_ads.py` 新規作成）
     - `.env` の `GOOGLE_ADS_*` を記入して実装へ
   - 将来: Instagram 有機指標（フォロワー数・リーチ）をレポートに追加
