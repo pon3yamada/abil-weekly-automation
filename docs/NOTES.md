@@ -82,7 +82,7 @@ OAuth 同意画面（Google Cloud プロジェクト `ABiL` → Google Auth Plat
 - **実際の手順**（順番は「Cloudflare で配信とログインを確かめる → private 化 → GitHub Pages 無効化と DNS の後片付け」。レポートが見られない期間を作らないため）:
   1. Cloudflare の既存アカウントで Pages プロジェクト `abil-weekly-report` を Direct Upload で作成（中身は数値なしの仮ページ）。URL は `https://abil-weekly-report.pages.dev`
   2. Zero Trust を Free プラン（$0・50 ユーザーまで）で有効化。チーム名は `abil-shop`（ログイン画面は `abil-shop.cloudflareaccess.com`）
-  3. Access の Self-hosted application `abil-weekly-report` を作成。宛先は `abil-weekly-report.pages.dev` と `*.abil-weekly-report.pages.dev`（プレビュー URL）の 2 つ、ポリシーは Allow ＋ Include Emails（許可メールは Cloudflare 側だけに置く）、ログインはメールのワンタイムコード
+  3. （未完了）Access の Self-hosted application `abil-weekly-report` を作成する。宛先は `abil-weekly-report.pages.dev` と `*.abil-weekly-report.pages.dev`（プレビュー URL）の 2 つ、ポリシーは Allow ＋ Include Emails（許可メールは Cloudflare 側だけに置く）、ログインはメールのワンタイムコード
   4. コード: `pages.yml` / `backfill.yml` のデプロイを `cloudflare/wrangler-action@v3` の `pages deploy _site --project-name=abil-weekly-report --branch=main` に置き換え（`deploy_only` も同じ）。`github-pages` environment と `pages` / `id-token` 権限を外した。パスワード入力画面をテンプレート・生成スクリプト・コミット済み `_site/` の HTML から撤去。Slack 通知と `shopify.app.toml` の URL を新 URL に変更
   5. （以下、作業しながら追記）
 - **Actions の無料枠の見積もり（private 化の判断材料）**: 2026-09-04〜10-03 の実績は `Deploy Weekly Report` 4 回（1 回 50〜65 秒）・`Meta Token Expiry Check` 30 回（約 7 秒）・`Notify Slack Weekly Report` 4 回（約 11 秒）・CI は PR のたびに約 11 秒。ジョブごとに分単位へ切り上げても月 100 分未満で、無料枠（月 2,000 分）の 5% 程度
