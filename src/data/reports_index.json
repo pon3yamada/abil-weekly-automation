@@ -158,5 +158,12 @@
     "generated_at": "2026年10月5日 03:32",
     "overall_score": "A",
     "score_subtitle": "好調です。大きな異常は検知されていません"
+  },
+  {
+    "slug": "weekly_report_261005-261011",
+    "period": "2026年10月5日（月）〜 2026年10月11日（日）",
+    "generated_at": "2026年10月12日 04:22",
+    "overall_score": "D",
+    "score_subtitle": "要対応です。主要指標が大きく悪化しています"
   }
 ]
