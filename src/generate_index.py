@@ -5,16 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-DEFAULT_PASSWORD_HASH = os.environ.get(
-    "REPORT_PASSWORD_HASH",
-    "10bd0d13c822595f6995db0dc2c90b9ea38f0ce5e9c90cafa56a671529a6bb08",  # abil-ai
-)
 
 
 def main() -> int:
@@ -32,11 +26,6 @@ def main() -> int:
         type=Path,
         required=True,
         help="出力 HTML パス（例: _site/index.html）",
-    )
-    parser.add_argument(
-        "--password-hash",
-        default=DEFAULT_PASSWORD_HASH,
-        help="SHA-256 ハッシュ（デフォルト: 環境変数 REPORT_PASSWORD_HASH）",
     )
     args = parser.parse_args()
 
@@ -56,7 +45,7 @@ def main() -> int:
     template = env.get_template("index.html.j2")
     # 新しい順に並べる
     sorted_reports = sorted(reports, key=lambda r: r.get("slug", ""), reverse=True)
-    html = template.render(reports=sorted_reports, password_hash=args.password_hash)
+    html = template.render(reports=sorted_reports)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(html, encoding="utf-8")
