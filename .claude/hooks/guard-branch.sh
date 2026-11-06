@@ -22,6 +22,15 @@
 #     ただし main / master 自体の削除は止める（nagano で実測して直したバグ）
 #   - main / master にいるなら 終了コード 2 で拒否。stderr が AI への指示になる
 #   - 判定できないときは通す（フェイルオープン。門番が壊れて全作業が止まる方が害が大きい）
+#   - 拒否文の案内は、呼び出し時の cwd（フック入力の .cwd）が ROOT のリポの linked worktree の中で、
+#     かつ AX_ISSUE が無いときだけ worktree 用（ax で起動し直す／人に頼む）に差し替える。
+#     止める／通すの判定には cwd を使わない。詳細は本文の C 節（Issue #14）
+#
+# 既知の限界（Issue #14 の案内の出し分け）:
+#   - 見るのはセッションの cwd（フック入力の .cwd）だけ。本体にいるセッションが同じコマンドの中で
+#     worktree に入る形（`cd <wt> && git commit`・`git -C <wt> commit`）は従来の switch -c の案内になる
+#   - Cursor の中継（.cursor/hooks/shell-guard.sh）は .cwd を渡さないので、Cursor では常に従来の案内
+#     （判定は変わらない。拒否は拒否のまま）
 #
 # 既知の限界（許容済み・2026-08-31 round2 で棚卸し）:
 #   - feature ブランチから `git push origin feature:main` 型の明示 refspec はすり抜ける
@@ -185,6 +194,7 @@ BRANCH=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
 [ -n "$BRANCH" ] || exit 0
 
 if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+  WORKTREE_HINT=""
   if [ -n "${AX_ISSUE:-}" ]; then
     SWITCH_HINT="git -C \"$ROOT\" switch feature/issue-${AX_ISSUE}"
     WHY="ax の一本道は「PR 作成まで自動・マージは人間」です。main へ直接入れると
@@ -193,6 +203,34 @@ if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
     SWITCH_HINT="git -C \"$ROOT\" switch -c feature/作業名"
     WHY="このリポは main が本番または共同作業者に直結しています。変更は
 プルリクエストで着地させ、マージは人間が判断します。"
+    # --- C. 呼び出し時の cwd が ROOT のリポの linked worktree の中なら、案内だけ差し替える（Issue #14）---
+    # 本体（ROOT）で switch -c しても目の前の worktree は何も直らず、本体の checkout だけがずれる
+    # （2026-09-01 abil-os・09-17 badminton-ai・10-02 abil-os のアプリ worktree で 3 回踏んだ）。
+    # ★cwd は案内の出し分けにだけ使う。止める／通すの判定（上の BRANCH）は ROOT のまま変えない
+    #   （cwd からブランチを解決すると、cwd を動かしてすり抜ける穴が開く）。
+    # cwd はフック入力の .cwd（Claude Code・Codex とも同形）。無い・判定できないときは従来の案内に倒す。
+    CWD=$(echo "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
+    if [ -n "$CWD" ] && [ -d "$CWD" ]; then
+      C_COMMON=$(git -C "$CWD" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+      C_GITDIR=$(git -C "$CWD" rev-parse --path-format=absolute --git-dir 2>/dev/null)
+      C_TOP=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null)
+      R_COMMON=$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+      R_TOP=$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null)
+      if [ -n "$C_COMMON" ] && [ "$C_COMMON" = "$R_COMMON" ] && [ "$C_GITDIR" != "$C_COMMON" ] \
+         && [ -n "$C_TOP" ] && [ -n "$R_TOP" ] && [ "$C_TOP" != "$R_TOP" ]; then
+        WORKTREE_HINT="この worktree（${C_TOP}）では門番が本体（${ROOT}）の枝を見ており commit・push できないので、ax <Issue 番号> での起動し直しか、commit・push・PR 作成を人に頼んでください。"
+      fi
+    fi
+  fi
+  if [ -n "${WORKTREE_HINT:-}" ]; then
+    cat >&2 <<MSG
+${BRANCH} に直接コミット / push しようとしています。拒否しました。
+
+${WORKTREE_HINT}
+
+理由: ${WHY}
+MSG
+    exit 2
   fi
   cat >&2 <<MSG
 ${BRANCH} に直接コミット / push しようとしています。拒否しました。

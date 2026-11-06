@@ -11,6 +11,7 @@ loop-engineering の PHILOSOPHY.md §1（お願いは手紙の中、仕組みは
 | Stop 検証 | `stop-validate-merge-markers.sh` | 常時 | 衝突マーカー（マージの解消し忘れ）を残したまま終われない（同上） |
 | 操作ガード | `guard-branch.sh` | 既定は常時。隣に `guard-branch.scope`（1 行 `ax-only`）があるリポだけ ax セッション限定 | main / master への直接コミット・push（「PR まで自動・マージは人間」の機械担保） |
 | PR ガード | `guard-pr.sh` | 常時 | `--body` 直書き・必須 6 節の欠け・check-goal 出力なし・土台検証不合格・origin/main 未追随のままの PR 作成 / マージ |
+| 足元の報告 | `worktree-report.sh` | **未配布**（配布・SessionStart 配線・使い方の節は第 2 波。正本は loop-engineering の `templates/`） | **何も止めない**。マージ済み worktree を 3 段で報告し、片付けは人が `ax --gc` を打つ（decisions #143〜147） |
 
 ループの終了判定は `check-goal.sh`（いまの獲物の「成功の定義」を機械判定する）。
 **Stop フックには載せない** — 未完成のうちは当然未達で無限差し戻しになるため。
