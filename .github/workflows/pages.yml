@@ -1,4 +1,4 @@
-# Shopify データ取得 → レポート HTML 生成 → GitHub Pages デプロイ
+# Shopify データ取得 → レポート HTML 生成 → Cloudflare Pages デプロイ（Cloudflare Access でログイン必須）
 # 手動実行（workflow_dispatch）または毎週月曜 0:01 JST（日曜 15:01 UTC）に自動実行
 # Slack 通知は別ワークフロー（notify-slack.yml / 月曜 7:00 JST）
 name: Deploy Weekly Report
@@ -15,8 +15,6 @@ on:
 
 permissions:
   contents: write   # レポートファイルとインデックスを repo にコミットするため
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -25,9 +23,6 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -177,8 +172,6 @@ jobs:
       # ── 個別レポート HTML 生成 ─────────────────────────────────────────
       - name: レポート HTML 生成
         if: ${{ !inputs.deploy_only }}
-        env:
-          REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
         run: |
           python3 src/generate_report.py \
             -i build/report_merged.json \
@@ -229,12 +222,9 @@ jobs:
       # ── トップページ（一覧）HTML 生成 ──────────────────────────────────
       # deploy_only 時もコミット済みの reports_index.json から再生成できる
       - name: トップページ（レポート一覧）生成
-        env:
-          REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
         run: |
           python3 src/generate_index.py -o _site/index.html
           test -s _site/index.html
-          touch _site/.nojekyll
 
       # ── repo にコミット（レポートファイル + インデックスを永続化）────────
       - name: 新レポートを repo にコミット
@@ -247,24 +237,15 @@ jobs:
           git diff --cached --quiet || git commit -m "report: ${{ env.WEEK_SLUG }}"
           git push
 
-      # ── GitHub Pages デプロイ ──────────────────────────────────────────
-      - uses: actions/upload-pages-artifact@v3
+      # ── Cloudflare Pages デプロイ（Direct Upload）─────────────────────
+      # --branch=main で常に本番（abil-weekly-report.pages.dev）へ出す。
+      # 閲覧は Cloudflare Access（許可したメールのみ）で守る。手順は docs/NOTES.md「現行の手順」
+      - name: Cloudflare Pages にデプロイ
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: _site
-
-      # GitHub 側の一時エラー（Deployment failed, try again later. など）に備えて
-      # 1回だけ自動リトライする
-      - id: deployment
-        uses: actions/deploy-pages@v4
-        continue-on-error: true
-
-      - name: デプロイ失敗時は60秒待って再試行
-        if: steps.deployment.outcome == 'failure'
-        run: sleep 60
-
-      - id: deployment-retry
-        if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy _site --project-name=abil-weekly-report --branch=main --commit-dirty=true
 
       # ── 失敗時アラート（従来はデプロイ失敗に気づけず URL が 404 のままだった）──
       - name: 失敗時に Slack へアラート

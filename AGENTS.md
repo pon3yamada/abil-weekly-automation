@@ -5,7 +5,7 @@ ABiL.SHOP の週次レポート自動化（Shopify・広告の数値 → HTML �
 ## 構成の入口
 
 - 全体像: [README.md](README.md)、フェーズと次の一手: [docs/ROADMAP.md](docs/ROADMAP.md)、障害記録: [docs/NOTES.md](docs/NOTES.md)
-- 本番は GitHub Actions の cron: `pages.yml`（週次生成 + GitHub Pages）・`notify-slack.yml`（Slack 通知）・`token_expiry_check.yml`（トークン失効の毎日監視）
+- 本番は GitHub Actions の cron: `pages.yml`（週次生成 + Cloudflare Pages。閲覧は Cloudflare Access でログイン必須）・`notify-slack.yml`（Slack 通知）・`token_expiry_check.yml`（トークン失効の毎日監視）
 
 ## 絶対制約
 

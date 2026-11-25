@@ -24,8 +24,6 @@ on:
 
 permissions:
   contents: write   # 再生成したレポートを repo にコミットするため
-  pages: write
-  id-token: write
 
 # pages.yml と同じグループ。週次の生成・デプロイと同時に走らせない
 concurrency:
@@ -35,9 +33,6 @@ concurrency:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url || steps.deployment-retry.outputs.page_url }}
 
     env:
       SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
@@ -56,7 +51,6 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
       GENERATE_ACTIONS_PROVIDER: ${{ secrets.GENERATE_ACTIONS_PROVIDER }}
-      REPORT_PASSWORD_HASH: ${{ secrets.REPORT_PASSWORD_HASH }}
       # 入力は run: に直接展開せず環境変数で渡す（スクリプト注入対策）
       START_DATE: ${{ inputs.start_date }}
       END_DATE: ${{ inputs.end_date }}
@@ -91,7 +85,6 @@ jobs:
         run: |
           python3 src/generate_index.py -o _site/index.html
           test -s _site/index.html
-          touch _site/.nojekyll
 
       - name: 再生成したレポートを repo にコミット
         run: |
@@ -102,19 +95,10 @@ jobs:
           git diff --cached --quiet || git commit -m "report: backfill ${START_DATE}〜${END_DATE} の週を再生成"
           git push
 
-      # ── GitHub Pages デプロイ（pages.yml と同じく1回だけ自動リトライ）──────
-      - uses: actions/upload-pages-artifact@v3
+      # ── Cloudflare Pages デプロイ（pages.yml と同じ配信先）──────────────
+      - name: Cloudflare Pages にデプロイ
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: _site
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
-        continue-on-error: true
-
-      - name: デプロイ失敗時は60秒待って再試行
-        if: steps.deployment.outcome == 'failure'
-        run: sleep 60
-
-      - id: deployment-retry
-        if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy _site --project-name=abil-weekly-report --branch=main --commit-dirty=true

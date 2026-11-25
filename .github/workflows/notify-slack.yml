@@ -51,7 +51,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_URL_FUMIE: ${{ secrets.SLACK_WEBHOOK_URL_FUMIE }}
         run: |
-          REPORT_URL="https://tools.abil.shop/${{ env.WEEK_SLUG }}/"
+          REPORT_URL="https://abil-weekly-report.pages.dev/${{ env.WEEK_SLUG }}/"
           python3 src/post_slack.py \
             --report-url "$REPORT_URL" \
             --period "${{ env.PERIOD_RANGE }}" \

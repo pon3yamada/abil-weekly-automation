@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "96ff46796558c7539b30237c8eff5fff"
-application_url = "https://tools.abil.shop/"
+application_url = "https://abil-weekly-report.pages.dev/"
 embedded = false
 name = "abil-weekly-report"
 
@@ -16,6 +16,6 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://tools.abil.shop/",
+  "https://abil-weekly-report.pages.dev/",
   "http://localhost:3000/callback",
 ]
