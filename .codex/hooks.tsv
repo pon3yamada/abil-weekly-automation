@@ -1,0 +1,15 @@
+# Codex の門番の表（各リポの .codex/hooks.tsv に置く。リポ固有 — 配った後は行を足してよい。窓口 .codex/hooks.sh が読む）
+#
+# ★門番を足す・外す・順を変える・timeout を変えるのはこの表の行で。.codex/hooks.json は触らない（触ると Codex の信頼が外れる）
+# 書式: タブ区切り。<イベント>  <matcher（* か正規表現・全体一致）>  <timeout 秒>  <スクリプトのパス（リポ直下から）>
+#   matcher が見る値: PreToolUse = hooks.json のその組の matcher（Codex のシェルは Bash・書き込みは apply_patch）/ SessionStart = 入力の source。
+#   Stop などは * だけ。イベントの綴り違い・hooks.json が窓口へ回さない行（PostToolUse・Write|Edit など）は窓口が止める
+#   timeout はその門番 1 本の上限（窓口が perl でプロセスグループごと止める）。hooks.json の窓口の項目の timeout
+#   （PreToolUse 900・Stop 300・SessionStart 120）が、その組に当たる行の合計以上であること
+#
+# 行が 1 つも無いイベントは何もしない（門番の無いリポは、この表を行なしのまま置けばよい）。
+# 門番の基本の一式（settings.claude.json と同じ）を配ったリポは、下の行の先頭の # を外す（列の区切りはタブ）:
+PreToolUse	Bash	15	.claude/hooks/guard-branch.sh
+PreToolUse	Bash	30	.claude/hooks/guard-pr.sh
+Stop	*	30	.claude/hooks/stop-validate-links.sh
+Stop	*	30	.claude/hooks/stop-validate-merge-markers.sh
